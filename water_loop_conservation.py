@@ -33,26 +33,6 @@ def set_background():
         """, unsafe_allow_html=True
     )
 
-# ----------------- Animated Pet -----------------
-def show_pet(pet_emoji, status):
-    # Animation css
-    if status=="green":  # vui
-        anim = "transform:translateY(0px); animation: bounce 1s infinite alternate;"
-    elif status=="orange":  # hơi héo
-        anim = "transform:translateY(0px); animation: shake 0.5s infinite alternate;"
-    else:  # đỏ
-        anim = "transform:translateY(0px); animation: fade 1s infinite alternate;"
-
-    st.markdown(f"""
-    <style>
-    @keyframes bounce {{0% {{transform: translateY(0px)}} 100% {{transform: translateY(-10px)}}}}
-    @keyframes shake {{0% {{transform: translateX(0px)}} 100% {{transform: translateX(8px)}}}}
-    @keyframes fade {{0% {{opacity:1}} 100% {{opacity:0.4}}}}
-    .pet {{font-size:60px; text-align:center; {anim}}}
-    </style>
-    <div class="pet">{pet_emoji}</div>
-    """, unsafe_allow_html=True)
-
 # ----------------- Login & Register -----------------
 def login_register():
     set_background()
@@ -166,14 +146,14 @@ def water_dashboard():
 
         # Card màu gradient theo ngưỡng 80-110%
         if today_usage < 0.8*daily_limit:
-            color, msg, pet, status = "lightgreen", "Rất tiết kiệm 👏", "🌳", "green"
+            color, msg, pet = "lightgreen", "Rất tiết kiệm 👏", "🌳"
         elif today_usage <= 1.1*daily_limit:
-            color, msg, pet, status = "orange", "Cần chú ý ⚠️", "🌿", "orange"
+            color, msg, pet = "orange", "Cần chú ý ⚠️", "🌿"
         else:
-            color, msg, pet, status = "red", "Đã vượt ngưỡng ❌", "🥀", "red"
+            color, msg, pet = "red", "Đã vượt ngưỡng ❌", "🥀"
 
         st.markdown(
-            f"<div style='padding:14px;border-radius:12px;background:{color};color:white;font-weight:bold;text-align:center;font-size:18px;'>💧 Hôm nay: {today_usage} L - {msg}</div>",
+            f"<div style='padding:14px;border-radius:12px;background:{color};color:white;font-weight:bold;text-align:center;font-size:18px;'>💧 Hôm nay: {today_usage} L - {msg} {pet}</div>",
             unsafe_allow_html=True
         )
 
@@ -183,4 +163,48 @@ def water_dashboard():
         st.write(f"💧 {today_usage}/{daily_limit} L")
 
         # Bar chart hoạt động
-        act_sum = user_data.groupby("activity")["amount"].sum().reset
+        act_sum = user_data.groupby("activity")["amount"].sum().reset_index()
+        bar_chart = alt.Chart(act_sum).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(
+            x=alt.X("activity", sort=None),
+            y="amount",
+            color=alt.Color("activity", scale=alt.Scale(scheme="pastel1"), legend=None),
+            tooltip=["activity","amount"]
+        ).properties(width=700, height=350)
+        st.altair_chart(bar_chart,use_container_width=True)
+
+        # Line chart theo ngày
+        day_sum = user_data.groupby("date")["amount"].sum().reset_index()
+        line_chart = alt.Chart(day_sum).mark_line(point=True, color="#05595b").encode(
+            x="date",
+            y="amount",
+            tooltip=["date","amount"]
+        ).properties(width=700, height=350)
+        st.altair_chart(line_chart,use_container_width=True)
+
+        # Pet ảo animation đơn giản
+        st.subheader("🐟 Pet ảo")
+        st.markdown(f"<div style='font-size:60px;text-align:center'>{pet}</div>", unsafe_allow_html=True)
+        if today_usage < 0.8*daily_limit:
+            st.success("Cây đang phát triển tươi tốt!")
+        elif today_usage <= 1.1*daily_limit:
+            st.warning("Cây hơi héo, hãy tiết kiệm thêm nhé.")
+        else:
+            st.error("Cây đang héo / Cá buồn 😢")
+
+        st.download_button("📥 Tải dữ liệu CSV", user_data.to_csv(index=False),"water_usage.csv","text/csv")
+
+    if st.button("🚪 Đăng xuất", use_container_width=True):
+        st.session_state.logged_in=False
+        st.session_state.username=None
+        safe_rerun()
+
+# ----------------- Main -----------------
+def main():
+    st.set_page_config(page_title="Water Loop App", page_icon="💧", layout="centered")
+    if "logged_in" not in st.session_state or not st.session_state.logged_in:
+        login_register()
+    else:
+        water_dashboard()
+
+if __name__=="__main__":
+    main()
