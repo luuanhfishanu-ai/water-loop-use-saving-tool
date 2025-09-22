@@ -124,13 +124,20 @@ def water_dashboard():
     if not user_data.empty:
         today_usage = user_data[user_data["date"]==today]["amount"].sum()
 
-        # Gradient card
-        if today_usage < daily_limit*0.5: color,msg="lightgreen","Rất tiết kiệm 👏"
-        elif today_usage < daily_limit: color,msg="orange","Cần chú ý ⚠️"
-        else: color,msg="red","Đã vượt ngưỡng ❌"
+        # Card màu gradient theo ngưỡng 80-110%
+        if today_usage < 0.8*daily_limit:
+            color, msg = "lightgreen", "Rất tiết kiệm 👏"
+        elif today_usage <= 1.1*daily_limit:
+            color, msg = "orange", "Cần chú ý ⚠️"
+        else:
+            color, msg = "red", "Đã vượt ngưỡng ❌"
 
-        st.markdown(f"<div style='padding:14px;border-radius:12px;background:{color};color:white;font-weight:bold;text-align:center;font-size:18px;'>💧 Hôm nay: {today_usage} L - {msg}</div>", unsafe_allow_html=True)
+        st.markdown(
+            f"<div style='padding:14px;border-radius:12px;background:{color};color:white;font-weight:bold;text-align:center;font-size:18px;'>💧 Hôm nay: {today_usage} L - {msg}</div>",
+            unsafe_allow_html=True
+        )
 
+        # Progress bar
         st.write("### 🚰 Tiến độ sử dụng hôm nay")
         st.progress(min(today_usage/daily_limit,1.0))
         st.write(f"💧 {today_usage}/{daily_limit} L")
@@ -154,11 +161,14 @@ def water_dashboard():
         ).properties(width=700, height=350)
         st.altair_chart(line_chart,use_container_width=True)
 
-        # Pet ảo
+        # Pet ảo thông minh
         st.subheader("🐟 Pet ảo")
-        if today_usage < daily_limit*0.5: st.success("🌳 Cây đang phát triển tươi tốt!")
-        elif today_usage < daily_limit: st.warning("🌿 Cây hơi héo, hãy tiết kiệm thêm nhé.")
-        else: st.error("🥀 Cây đang héo / Cá buồn 😢")
+        if today_usage < 0.8*daily_limit:
+            st.success("🌳 Cây đang phát triển tươi tốt!")
+        elif today_usage <= 1.1*daily_limit:
+            st.warning("🌿 Cây hơi héo, hãy tiết kiệm thêm nhé.")
+        else:
+            st.error("🥀 Cây đang héo / Cá buồn 😢")
 
         st.download_button("📥 Tải dữ liệu CSV", user_data.to_csv(index=False),"water_usage.csv","text/csv")
 
