@@ -1,4 +1,19 @@
+import subprocess
+import sys
 import streamlit as st
+
+# ----------------- Auto install with cache -----------------
+@st.cache_resource
+def install_and_import(packages):
+    for pkg in packages:
+        try:
+            __import__(pkg)
+        except ImportError:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
+
+install_and_import(["streamlit", "pandas", "plotly"])
+
+# ----------------- Imports -----------------
 import pandas as pd
 import plotly.express as px
 from datetime import datetime, timedelta
