@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
-from datetime import datetime, timedelta
+from datetime import datetime
 
 USERS_FILE = "users.csv"
 DATA_FILE = "water_usage.csv"
@@ -53,14 +53,7 @@ def login_register():
         if house_type == "➕ Khác":
             house_type = st.text_input("Nhập loại nhà của bạn:")
 
-        location = st.selectbox("📍 Khu vực", [
-            "Tỉnh Tuyên Quang","Tỉnh Lào Cai","Tỉnh Thái Nguyên","Tỉnh Phú Thọ","Tỉnh Bắc Ninh","Tỉnh Hưng Yên",
-            "Thành phố Hải Phòng","Tỉnh Ninh Bình","Tỉnh Quảng Trị","Thành phố Đà Nẵng","Tỉnh Quảng Ngãi",
-            "Tỉnh Gia Lai","Tỉnh Khánh Hoà","Tỉnh Lâm Đồng","Tỉnh Đắk Lắk","Thành phố Hồ Chí Minh","Tỉnh Đồng Nai",
-            "Tỉnh Tây Ninh","Thành phố Cần Thơ","Tỉnh Vĩnh Long","Tỉnh Đồng Tháp","Tỉnh Cà Mau","Tỉnh An Giang",
-            "Thành phố Hà Nội","Thành phố Huế","Tỉnh Lai Châu","Tỉnh Điện Biên","Tỉnh Sơn La","Tỉnh Lạng Sơn",
-            "Tỉnh Quảng Ninh","Tỉnh Thanh Hoá","Tỉnh Nghệ An","Tỉnh Hà Tĩnh","Tỉnh Cao Bằng"
-        ])
+        location = st.text_input("📍 Khu vực (tỉnh/thành phố)")
         address = st.text_input("🏠 Địa chỉ cụ thể (số nhà, đường...)")
 
         daily_limit = st.number_input("⚖️ Ngưỡng nước hàng ngày (Lít)", min_value=50, value=200)
@@ -134,10 +127,9 @@ def water_dashboard():
     location = user_info["location"]
     address = user_info["address"] if "address" in user_info.index else ""
     daily_limit = st.session_state.daily_limit
-    entries_per_day = st.session_state.entries_per_day
     reminder_times = st.session_state.reminder_times
 
-    # --- Dashboard ghi nhận và thống kê ---
+    # --- Reminder ---
     now = datetime.now()
     for t in reminder_times:
         h,m = map(int, t.split(":"))
@@ -146,7 +138,7 @@ def water_dashboard():
         if delta_minutes <=5:
             st.info(f"⏰ Nhắc nhở: Đã đến giờ nhập dữ liệu nước! (Khoảng {t})")
 
-    # Ghi nhận
+    # --- Nhập dữ liệu ---
     st.subheader("📝 Ghi nhận hoạt động")
     col1,col2 = st.columns(2)
     with col1:
@@ -158,7 +150,7 @@ def water_dashboard():
                 activity = custom_act
 
     amount = st.number_input("Lượng nước đã dùng (Lít)", min_value=1, value=DEFAULT_ACTIVITIES.get(activity,10))
-    date_input = st.date_input("📅 Ngày sử dụng", value=datetime.now().date(), min_value=datetime(2020,1,1).date(), max_value=datetime.now().date())
+    date_input = st.date_input("📅 Ngày sử dụng", value=datetime.now().date())
     addr_input = st.text_input("🏠 Nhập địa chỉ", value=address)
 
     if st.button("💾 Lưu hoạt động", use_container_width=True):
@@ -177,14 +169,16 @@ def water_dashboard():
         st.success("✅ Đã lưu hoạt động!")
         safe_rerun()
 
-    # Quản lý hoạt động, xóa, Data Editor
+    # --- Quản lý hoạt động ---
     st.subheader("🗑️ Quản lý hoạt động")
     user_data = data[data["username"]==username].copy()
     if not user_data.empty:
         user_data["datetime"] = pd.to_datetime(user_data["date"] + " " + user_data["time"])
         user_data = user_data.sort_values("datetime", ascending=False).reset_index(drop=True)
+
         daily_sum = user_data.groupby("date")["amount"].sum().to_dict()
         user_data["Tổng Lượng Ngày (L)"] = user_data["date"].map(daily_sum)
+
         def warning_label(amount):
             if amount < 0.8*daily_limit: return "💚 Ổn"
             elif amount <= 1.1*daily_limit: return "🟠 Gần ngưỡng"
@@ -192,18 +186,12 @@ def water_dashboard():
         user_data["Cảnh báo"] = user_data["Tổng Lượng Ngày (L)"].apply(warning_label)
         user_data["Xóa"] = False
 
-        def row_color(row):
-            if "💚" in row["Cảnh báo"]: return ["#d4f4dd"]*8
-            elif "🟠" in row["Cảnh báo"]: return ["#ffe5b4"]*8
-            else: return ["#ffcccc"]*8
-        row_colors = [row_color(r) for _, r in user_data.iterrows()]
-
+        # Editor
         edited_df = st.data_editor(
             user_data[["date","time","activity","amount","Tổng Lượng Ngày (L)","Cảnh báo","Xóa","address"]],
             num_rows="dynamic",
             use_container_width=True,
-            hide_index=True,
-            row_colors=row_colors
+            hide_index=True
         )
 
         if st.button("❌ Xóa các hoạt động đã chọn"):
@@ -217,32 +205,16 @@ def water_dashboard():
             else:
                 st.warning("⚠️ Bạn chưa chọn hoạt động nào để xóa.")
 
-        # --- Bộ lọc địa chỉ ---
-        st.subheader("🔍 Bộ lọc phân tích")
-        all_addresses = user_data["address"].unique().tolist()
-        selected_addresses = st.multiselect("Chọn địa chỉ", options=all_addresses, default=all_addresses)
-        filtered_data = user_data[user_data["address"].isin(selected_addresses)]
+        # --- Biểu đồ theo hoạt động ---
+        st.subheader("📊 Thống kê hoạt động")
+        act_sum = user_data.groupby("activity")["amount"].sum().reset_index()
+        chart = alt.Chart(act_sum).mark_bar().encode(
+            x="activity", y="amount", tooltip=["activity","amount"],
+            color="activity"
+        ).properties(width=700,height=350)
+        st.altair_chart(chart,use_container_width=True)
 
-        # Khoảng thời gian: Tuần / Tháng
-        time_frame = st.radio("Chọn khoảng thời gian", ["Tuần","Tháng"], horizontal=True)
-        if time_frame=="Tuần":
-            filtered_data["year"] = filtered_data["datetime"].dt.isocalendar().year
-            filtered_data["week"] = filtered_data["datetime"].dt.isocalendar().week
-            week_sum = filtered_data.groupby(["address","year","week"])["amount"].sum().reset_index()
-            week_sum["year_week"] = week_sum["year"].astype(str) + "-W" + week_sum["week"].astype(str)
-            chart = alt.Chart(week_sum).mark_line(point=True).encode(
-                x="year_week", y="amount", color="address:N", tooltip=["address","year_week","amount"]
-            ).properties(width=700,height=350)
-            st.altair_chart(chart,use_container_width=True)
-        else:
-            filtered_data["month"] = filtered_data["datetime"].dt.to_period("M").astype(str)
-            month_sum = filtered_data.groupby(["address","month"])["amount"].sum().reset_index()
-            chart = alt.Chart(month_sum).mark_line(point=True).encode(
-                x="month", y="amount", color="address:N", tooltip=["address","month","amount"]
-            ).properties(width=700,height=350)
-            st.altair_chart(chart,use_container_width=True)
-
-        # Pet ảo
+        # --- Pet ảo ---
         st.subheader("🌱 Trồng cây ảo")
         today_data = user_data[user_data["datetime"].dt.date==datetime.now().date()]
         today_usage = today_data["amount"].sum() if not today_data.empty else 0
@@ -256,7 +228,7 @@ def water_dashboard():
         st.markdown(f"<div style='padding:14px;border-radius:12px;background:{pet_color};color:white;font-weight:bold;text-align:center;font-size:18px;'>{pet_msg}</div>", unsafe_allow_html=True)
 
         # Download CSV
-        st.download_button("📥 Tải dữ liệu CSV", filtered_data.to_csv(index=False),"water_usage.csv","text/csv")
+        st.download_button("📥 Tải dữ liệu CSV", user_data.to_csv(index=False),"water_usage.csv","text/csv")
 
     # Logout
     if st.button("🚪 Đăng xuất", use_container_width=True):
