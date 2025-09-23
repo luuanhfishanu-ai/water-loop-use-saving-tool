@@ -1,35 +1,31 @@
-# app.py - Full Water Loop App (fixed DEFAULT_ACTIVITIES and complete)
+# app.py - Water Loop (full, includes name/address + grouped logs + charts + pet)
 import streamlit as st
 import pandas as pd
 import altair as alt
-import numpy as np
-import uuid
 from datetime import datetime, timedelta
+import uuid
 import os
 
-# -----------------------------
-# Config / Constants
-# -----------------------------
+# ---------------- Config ----------------
 USERS_FILE = "users.csv"
-DATA_FILE = "water_usage.csv"
+DATA_FILE  = "water_usage.csv"
 
-THEME = {
-    "bg_gradient": ("#eff6ff", "#dbeafe"),
-    "primary": "#2563EB",
-    "text": "#0f172a"
-}
+st.set_page_config(page_title="Water Loop", page_icon="💧", layout="wide")
 
-# DEFAULT activities (must be defined before UI uses it)
+# Default activities
 DEFAULT_ACTIVITIES = {
-    "🚿 Tắm": 50,
-    "🧺 Giặt quần áo": 70,
-    "🍳 Nấu ăn": 20,
-    "🌱 Tưới cây": 15,
-    "🧹 Lau nhà": 25,
-    "🛵 Rửa xe máy": 40,
-    "🚗 Rửa ô tô": 150,
-    "🚲 Rửa xe đạp": 10
+    "🚿 Tắm":50, "🧺 Giặt quần áo":70, "🍳 Nấu ăn":20, "🌱 Tưới cây":15,
+    "🧹 Lau nhà":25, "🛵 Rửa xe máy":40, "🚗 Rửa ô tô":150, "🚲 Rửa xe đạp":10
 }
+
+# Pet thresholds
+PET_LEVELS = [
+    (0, "Seedling", "🌱"),
+    (50, "Sprout", "🌿"),
+    (150, "Young Tree", "🌳"),
+    (350, "Mature Tree", "🌲"),
+    (700, "Forest Guardian", "🌳🌟")
+]
 
 PROVINCES = [
     "Tỉnh Tuyên Quang","Tỉnh Lào Cai","Tỉnh Thái Nguyên","Tỉnh Phú Thọ","Tỉnh Bắc Ninh",
@@ -41,18 +37,15 @@ PROVINCES = [
     "Tỉnh Thanh Hoá","Tỉnh Nghệ An","Tỉnh Hà Tĩnh","Tỉnh Cao Bằng"
 ]
 
-# Pet levels config (points thresholds)
-PET_LEVELS = [
-    (0, "Seedling", "🌱"),
-    (50, "Sprout", "🌿"),
-    (150, "Young Tree", "🌳"),
-    (350, "Mature Tree", "🌲"),
-    (700, "Forest Guardian", "🌳🌟"),
-]
+# ---------------- Utilities ----------------
+def safe_rerun():
+    if hasattr(st, "rerun"):
+        st.rerun()
+    elif hasattr(st, "experimental_rerun"):
+        st.experimental_rerun()
+    else:
+        st.warning("⚠️ Phiên bản Streamlit của bạn không hỗ trợ rerun tự động.")
 
-# -----------------------------
-# File utilities
-# -----------------------------
 def ensure_users_file():
     if not os.path.exists(USERS_FILE):
         df = pd.DataFrame(columns=[
@@ -64,7 +57,8 @@ def ensure_users_file():
 def ensure_data_file():
     if not os.path.exists(DATA_FILE):
         df = pd.DataFrame(columns=[
-            "username","house_type","location","address","date","time","activity","amount","note","group_id"
+            "username","full_name","house_type","location","address",
+            "date","time","activity","amount","note","group_id"
         ])
         df.to_csv(DATA_FILE, index=False)
 
@@ -74,7 +68,6 @@ def load_users():
     if "points" not in df.columns:
         df["points"] = 0.0
     else:
-        # coerce numeric
         try:
             df["points"] = df["points"].astype(float)
         except:
@@ -89,7 +82,7 @@ def save_users(df):
 def load_data():
     ensure_data_file()
     df = pd.read_csv(DATA_FILE, dtype=str).fillna("")
-    # ensure amount numeric
+    # ensure numeric amount
     if "amount" in df.columns:
         try:
             df["amount"] = df["amount"].astype(float)
@@ -97,263 +90,214 @@ def load_data():
             df["amount"] = df["amount"].replace("", 0).astype(float)
     else:
         df["amount"] = 0.0
-    # ensure group_id exists
-    if "group_id" not in df.columns:
-        df["group_id"] = ""
+    for c in ["group_id","note","full_name","house_type","location","address"]:
+        if c not in df.columns:
+            df[c] = ""
     return df
 
 def save_data(df):
     df.to_csv(DATA_FILE, index=False)
 
-# -----------------------------
-# Theme CSS
-# -----------------------------
-def set_background():
-    a,b = THEME["bg_gradient"]
-    primary = THEME["primary"]
-    text = THEME["text"]
-    st.markdown(f"""
-    <style>
-    .stApp {{ background: linear-gradient(120deg, {a}, {b}); color: {text}; }}
-    .stButton>button {{ background-color: {primary}; color: white; border-radius: 10px; padding: 0.5em 1em; font-weight:600; }}
-    .stDataFrame table td, .stDataFrame table th {{ color: {text}; }}
-    </style>
-    """, unsafe_allow_html=True)
-
-# -----------------------------
-# Utilities
-# -----------------------------
 def gen_group_id():
     return str(uuid.uuid4())
 
 def pet_level_for_points(points):
-    lvl_name, emoji = PET_LEVELS[0][1], PET_LEVELS[0][2]
-    for threshold, name, emo in PET_LEVELS:
-        if points >= threshold:
-            lvl_name, emoji = name, emo
-    return lvl_name, emoji
+    lvl, emo = PET_LEVELS[0][1], PET_LEVELS[0][2]
+    for thr, name, emoji in PET_LEVELS:
+        if points >= thr:
+            lvl, emo = name, emoji
+    return lvl, emo
 
-# -----------------------------
-# Data helpers
-# -----------------------------
-def ensure_group_ids(df):
-    # Backfill group_id if missing per username using 30-min rule
-    if df.empty:
-        return df
-    if 'group_id' not in df.columns or df['group_id'].isnull().all() or (df['group_id']=="" ).all():
-        df = df.sort_values(['username','date','time']).reset_index(drop=True)
-        df['datetime'] = pd.to_datetime(df['date'].astype(str) + " " + df['time'].astype(str), errors='coerce')
-        df['group_id'] = ""
-        for user in df['username'].unique():
-            mask = df['username']==user
-            user_idx = df[mask].index.tolist()
-            last_dt = None
-            current_group = None
-            for idx in user_idx:
-                dt = df.at[idx, 'datetime']
-                if pd.isna(dt) or last_dt is None or (dt - last_dt) > timedelta(minutes=30):
-                    current_group = gen_group_id()
-                df.at[idx, 'group_id'] = current_group
-                last_dt = dt
-        df = df.drop(columns=['datetime'])
-    return df
+# ---------------- Theme (simple) ----------------
+def set_background():
+    st.markdown("""
+        <style>
+        .stApp { background: linear-gradient(120deg,#eff6ff,#dbeafe); }
+        .stButton>button { background-color:#2563EB;color:white;border-radius:8px;padding:0.5em 1em; }
+        </style>
+    """, unsafe_allow_html=True)
 
-def explode_and_allocate(df, activity_col='activity', amount_col='amount'):
-    # split comma-separated activities and allocate amount equally
-    if df.empty:
-        return df
-    tmp = df.copy()
-    tmp['activity_list'] = tmp[activity_col].astype(str).str.split(', ')
-    tmp = tmp.explode('activity_list').reset_index(drop=True)
-    counts = tmp.groupby(tmp.index)['activity_list'].transform('count')
-    tmp['alloc_amount'] = tmp[amount_col].astype(float) / counts.replace(0,1)
-    return tmp
+# ---------------- Auth / Register ----------------
+def login_register():
+    set_background()
+    st.markdown("<h1 style='text-align:center;color:#05595b;'>💧 WATER LOOP 💧</h1>", unsafe_allow_html=True)
+    users = load_users()
 
-# -----------------------------
-# Auth & Profile UI
-# -----------------------------
-def register_user(users_df):
-    st.subheader("Tạo tài khoản")
-    col1, col2 = st.columns(2)
-    with col1:
-        username = st.text_input("Tên đăng nhập (username)")
-        password = st.text_input("Mật khẩu", type="password")
-    with col2:
+    mode = st.radio("Chọn chế độ:", ["Đăng nhập","Đăng ký"], horizontal=True)
+    username = st.text_input("👤 Tên đăng nhập")
+    password = st.text_input("🔒 Mật khẩu", type="password")
+
+    if mode == "Đăng ký":
         full_name = st.text_input("Họ & tên")
-        role = st.selectbox("Vai trò", ["user","admin"])
-    house_type = st.selectbox("Loại hộ", ["Chung cư","Nhà riêng","Biệt thự","Nhà trọ","Khu tập thể","Kí túc xá"])
-    location = st.selectbox("Tỉnh/Thành", PROVINCES)
-    address = st.text_input("Địa chỉ (số nhà, đường...)")
-    daily_limit = st.number_input("Ngưỡng nước hàng ngày (Lít)", min_value=50, value=200)
-    entries_day = st.slider("Số lần nhập/ngày", 1, 10, 3)
-    reminders = st.multiselect("Giờ nhắc nhở (tối đa 5)", options=[f"{h:02d}:00" for h in range(24)], default=["08:00","12:00","18:00"])
-    if len(reminders) > 5:
-        reminders = reminders[:5]
-    if st.button("Đăng ký"):
-        if username.strip()=="" or password.strip()=="":
-            st.error("Vui lòng nhập username và password.")
-            return users_df
-        if username in users_df['username'].values:
-            st.error("Tên đăng nhập đã tồn tại.")
-            return users_df
-        new = {
-            "username": username, "password": password, "full_name": full_name,
-            "role": role, "house_type": house_type, "location": location, "address": address,
-            "daily_limit": daily_limit, "entries_per_day": entries_day, "reminder_times": ",".join(reminders),
-            "points": 0.0, "pet_state": ""
-        }
-        users_df = pd.concat([users_df, pd.DataFrame([new])], ignore_index=True)
-        save_users(users_df)
-        st.success("Đăng ký thành công — hãy đăng nhập.")
-    return users_df
+        default_house_types = ["Chung cư","Nhà riêng","Biệt thự","Nhà trọ","Khu tập thể","Kí túc xá"]
+        house_type = st.selectbox("🏠 Loại hộ gia đình", default_house_types + ["➕ Khác"])
+        if house_type == "➕ Khác":
+            house_type = st.text_input("Nhập loại nhà của bạn:")
+        location = st.selectbox("📍 Khu vực", PROVINCES)
+        address = st.text_input("🏠 Địa chỉ cụ thể (số nhà, đường...)")
+        daily_limit = st.number_input("⚖️ Ngưỡng nước hàng ngày (Lít)", min_value=50, value=200)
+        entries_per_day = st.slider("🔔 Số lần nhập dữ liệu/ngày", 1, 5, 3)
+        reminder_times = st.multiselect(
+            "⏰ Chọn giờ nhắc nhở trong ngày (tối đa 5 lần)",
+            options=[f"{h:02d}:00" for h in range(24)],
+            default=["08:00","12:00","18:00"]
+        )
+        if len(reminder_times) > 5:
+            st.warning("⚠️ Chỉ chọn tối đa 5 giờ nhắc nhở. Mặc định giữ 5 giờ đầu.")
+            reminder_times = reminder_times[:5]
 
-def login_user(users_df):
-    st.subheader("Đăng nhập")
-    col1, col2 = st.columns(2)
-    with col1:
-        username = st.text_input("Tên đăng nhập (username)")
-    with col2:
-        password = st.text_input("Mật khẩu", type="password")
-    if st.button("Đăng nhập"):
-        if username.strip()=="" or password.strip()=="":
-            st.error("Nhập đủ thông tin.")
-            return None
-        row = users_df[(users_df['username']==username) & (users_df['password']==password)]
-        if row.empty:
-            st.error("Sai tên đăng nhập hoặc mật khẩu.")
-            return None
-        st.success(f"Chào {row.iloc[0].get('full_name') or username}!")
-        return username
-    return None
+        if st.button("Đăng ký", use_container_width=True):
+            if username in users['username'].values:
+                st.error("❌ Tên đăng nhập đã tồn tại.")
+            else:
+                new = pd.DataFrame([{
+                    "username": username, "password": password, "full_name": full_name,
+                    "role":"user", "house_type": house_type, "location": location, "address": address,
+                    "daily_limit": daily_limit, "entries_per_day": entries_per_day, "reminder_times": ",".join(reminder_times),
+                    "points": 0.0, "pet_state":""
+                }])
+                users = pd.concat([users, new], ignore_index=True)
+                save_users(users)
+                st.success("✅ Đăng ký thành công, vui lòng đăng nhập.")
 
-def edit_profile(users_df, current_user):
-    st.subheader("Chỉnh sửa hồ sơ")
-    user_row = users_df[users_df['username']==current_user].iloc[0]
-    full = st.text_input("Họ & tên", value=user_row.get('full_name',''))
-    try:
-        idx = ["Chung cư","Nhà riêng","Biệt thự","Nhà trọ","Khu tập thể","Kí túc xá"].index(user_row.get('house_type','Chung cư'))
-    except:
-        idx = 0
-    house_type = st.selectbox("Loại hộ", ["Chung cư","Nhà riêng","Biệt thự","Nhà trọ","Khu tập thể","Kí túc xá"], index=idx)
-    try:
-        loc_idx = PROVINCES.index(user_row.get('location','Thành phố Hà Nội'))
-    except:
-        loc_idx = 0
-    location = st.selectbox("Tỉnh/Thành", PROVINCES, index=loc_idx)
-    address = st.text_input("Địa chỉ", value=user_row.get('address',''))
-    daily_limit = st.number_input("Ngưỡng nước hàng ngày (Lít)", min_value=50, value=float(user_row.get('daily_limit',200)))
-    entries_day = st.slider("Số lần nhập/ngày", 1, 10, int(user_row.get('entries_per_day') or 3))
-    reminders = st.multiselect("Giờ nhắc nhở (tối đa 5)", options=[f"{h:02d}:00" for h in range(24)],
-                               default=(user_row.get('reminder_times','').split(",") if user_row.get('reminder_times') else ["08:00","12:00","18:00"]))
-    if len(reminders)>5:
-        reminders = reminders[:5]
-    if st.button("Lưu hồ sơ"):
-        users_df.loc[users_df['username']==current_user, ['full_name','house_type','location','address','daily_limit','entries_per_day','reminder_times']] = [
-            full, house_type, location, address, daily_limit, entries_day, ",".join(reminders)
-        ]
-        save_users(users_df)
-        st.success("Đã lưu hồ sơ.")
-    if st.button("Đổi mật khẩu"):
-        newpw = st.text_input("Mật khẩu mới", type="password", key="newpw")
-        if newpw:
-            users_df.loc[users_df['username']==current_user, 'password'] = newpw
-            save_users(users_df)
-            st.success("Đổi mật khẩu thành công.")
-    return users_df
+    else:  # login
+        if st.button("Đăng nhập", use_container_width=True):
+            user_row = users[(users["username"]==username)&(users["password"]==password)]
+            if user_row.empty:
+                st.error("❌ Sai tên đăng nhập hoặc mật khẩu.")
+            else:
+                st.session_state.logged_in = True
+                st.session_state.username = username
+                st.session_state.full_name = user_row.iloc[0].get("full_name","")
+                st.session_state.daily_limit = float(user_row.iloc[0].get("daily_limit",200))
+                st.session_state.entries_per_day = int(user_row.iloc[0].get("entries_per_day",3))
+                st.session_state.reminder_times = user_row.iloc[0].get("reminder_times","").split(",") if pd.notna(user_row.iloc[0].get("reminder_times","")) else []
+                st.session_state.address = user_row.iloc[0].get("address","")
+                st.success("✅ Đăng nhập thành công!")
+                safe_rerun()
 
-# -----------------------------
-# Data add / grouped editor
-# -----------------------------
-def add_activity(data_df, username, house_type, location, addr_input, activity, amount, note_text, date_input):
+# ---------------- Data add (per-activity row) ----------------
+def add_activity(data, username, full_name, house_type, location, addr_input, activity, amount, note_text, date_input):
     now = datetime.now()
-    if data_df.empty:
-        data_df = pd.DataFrame(columns=["username","house_type","location","address","date","time","activity","amount","note","group_id"])
-    user_rows = data_df[data_df['username']==username]
+    # ensure columns
+    for c in ["username","full_name","house_type","location","address","date","time","activity","amount","note","group_id"]:
+        if c not in data.columns:
+            data[c] = "" if c in ["username","full_name","house_type","location","address","activity","note","group_id"] else 0.0
+    data = data.reset_index(drop=True)
+
+    # find user's last entry and reuse group_id if within 30 minutes
+    user_entries = data[data["username"]==username].copy()
     group_id = gen_group_id()
-    if not user_rows.empty:
-        last_row = user_rows.sort_values(['date','time']).iloc[-1]
-        try:
-            last_dt = datetime.strptime(f"{last_row['date']} {last_row['time']}", "%Y-%m-%d %H:%M:%S")
-        except:
-            last_dt = None
-        if last_dt and (now - last_dt) <= timedelta(minutes=30):
-            group_id = last_row.get('group_id') or gen_group_id()
-    row = {
-        "username": username, "house_type": house_type, "location": location, "address": addr_input,
+    if not user_entries.empty:
+        user_entries['datetime'] = pd.to_datetime(user_entries['date'].astype(str) + " " + user_entries['time'].astype(str), errors='coerce')
+        user_entries = user_entries.sort_values('datetime', ascending=False)
+        last_idx = user_entries.index[0]
+        last_dt = user_entries.loc[last_idx, 'datetime']
+        last_group = user_entries.loc[last_idx, 'group_id'] if pd.notna(user_entries.loc[last_idx, 'group_id']) and user_entries.loc[last_idx, 'group_id']!="" else None
+        if pd.notna(last_dt) and (now - last_dt) <= timedelta(minutes=30):
+            group_id = last_group if last_group else gen_group_id()
+
+    new_row = {
+        "username": username,
+        "full_name": full_name,
+        "house_type": house_type,
+        "location": location,
+        "address": addr_input,
         "date": date_input.strftime("%Y-%m-%d") if isinstance(date_input, datetime) else str(date_input),
         "time": now.strftime("%H:%M:%S"),
-        "activity": activity, "amount": float(amount), "note": note_text if note_text else "", "group_id": group_id
+        "activity": activity,
+        "amount": float(amount),
+        "note": note_text if note_text else "",
+        "group_id": group_id
     }
-    data_df = pd.concat([data_df, pd.DataFrame([row])], ignore_index=True)
-    save_data(data_df)
-    return data_df, group_id
+    data = pd.concat([data, pd.DataFrame([new_row])], ignore_index=True)
+    save_data(data)
+    return data
 
-def grouped_summary_for_user(data_df, username):
-    d = data_df[data_df['username']==username].copy()
-    if d.empty:
+# ---------------- Grouped log UI ----------------
+def grouped_summary_for_user(data, username):
+    df = data[data['username']==username].copy()
+    if df.empty:
         return pd.DataFrame()
-    d['datetime'] = pd.to_datetime(d['date'].astype(str) + " " + d['time'].astype(str), errors='coerce')
-    grouped = d.groupby('group_id').agg({
-        'date':'min','time':'min','address':lambda x: x.dropna().astype(str).iloc[0] if len(x.dropna())>0 else "",
+    df['datetime'] = pd.to_datetime(df['date'].astype(str) + " " + df['time'].astype(str), errors='coerce')
+    grouped = df.groupby('group_id').agg({
+        'date':'min','time':'min','address': lambda x: x.dropna().astype(str).iloc[0] if len(x.dropna())>0 else "",
         'amount':'sum','activity': lambda x: ", ".join(x.astype(str))
     }).reset_index().rename(columns={'amount':'total_amount','activity':'activities'}).sort_values(['date','time'], ascending=False)
     return grouped
 
-def show_grouped_editor(data_df, username):
+def show_grouped_log_for_user(data, username):
     st.subheader("📒 Nhật ký (tóm tắt theo nhóm)")
-    grouped = grouped_summary_for_user(data_df, username)
+    grouped = grouped_summary_for_user(data, username)
     if grouped.empty:
         st.info("Chưa có dữ liệu.")
-        return data_df
+        return data
     st.dataframe(grouped[['group_id','date','time','address','total_amount','activities']].rename(columns={'total_amount':'Tổng Lít','activities':'Hoạt động'}), use_container_width=True)
-    sel = st.selectbox("Chọn nhóm để xem/ sửa chi tiết:", options=grouped['group_id'])
+
+    sel = st.selectbox("🔎 Chọn nhóm để xem chi tiết / chỉnh sửa:", options=grouped['group_id'])
     if sel:
         st.write(f"### Chi tiết nhóm: {sel}")
-        details = data_df[(data_df['username']==username) & (data_df['group_id']==sel)].sort_values(['date','time'], ascending=False).reset_index()
-        display = details[['index','date','time','activity','amount','note','address']].rename(columns={'index':'_orig_index'})
-        orig_indices = display['_orig_index'].tolist()
-        editor_df = display.drop(columns=['_orig_index']).reset_index(drop=True)
+        details = data[(data['username']==username) & (data['group_id']==sel)].sort_values(['date','time'], ascending=False).reset_index()
+        # details has column 'index' (original index in data)
+        if 'index' not in details.columns:
+            st.error("Lỗi nội bộ: không tìm thấy mapping index.")
+            return data
+        display_df = details[['index','date','time','activity','amount','note','address']].copy().rename(columns={'index':'_orig_index'})
+        orig_indices = display_df['_orig_index'].tolist()
+        editor_df = display_df.drop(columns=['_orig_index']).reset_index(drop=True)
         edited = st.data_editor(editor_df, num_rows="dynamic", use_container_width=True, hide_index=True)
-        if st.button("💾 Lưu thay đổi chi tiết nhóm"):
-            for pos, orig in enumerate(orig_indices):
-                row = edited.iloc[pos]
-                data_df.at[orig, 'date'] = row['date']
-                data_df.at[orig, 'time'] = row['time']
-                data_df.at[orig, 'activity'] = row['activity']
-                try:
-                    data_df.at[orig, 'amount'] = float(row['amount'])
-                except:
-                    pass
-                data_df.at[orig, 'note'] = row.get('note', data_df.at[orig,'note'])
-                data_df.at[orig, 'address'] = row.get('address', data_df.at[orig,'address'])
-            save_data(data_df)
-            st.success("Đã lưu thay đổi.")
-            st.experimental_rerun()
-        choices = [f"{i+1}. {details.loc[i,'activity']} ({details.loc[i,'amount']} L) - {details.loc[i,'date']} {details.loc[i,'time']}" for i in range(len(details))]
-        to_delete = st.multiselect("Chọn hoạt động để xóa:", options=list(range(len(details))), format_func=lambda i: choices[i])
-        if st.button("❌ Xóa hoạt động đã chọn"):
-            if to_delete:
-                idxs = [orig_indices[pos] for pos in to_delete]
-                data_df = data_df.drop(idxs).reset_index(drop=True)
-                save_data(data_df)
-                st.success("Đã xóa hoạt động.")
-                st.experimental_rerun()
-        if st.button("🗑️ Xóa toàn bộ nhóm này"):
-            data_df = data_df[data_df['group_id'] != sel].reset_index(drop=True)
-            save_data(data_df)
-            st.success("Đã xóa nhóm.")
-            st.experimental_rerun()
-    return data_df
 
-# -----------------------------
-# Charts
-# -----------------------------
+        if st.button("💾 Lưu thay đổi chi tiết nhóm"):
+            try:
+                for pos, orig_idx in enumerate(orig_indices):
+                    row = edited.iloc[pos]
+                    data.at[orig_idx, 'date'] = row['date']
+                    data.at[orig_idx, 'time'] = row['time']
+                    data.at[orig_idx, 'activity'] = row['activity']
+                    try:
+                        data.at[orig_idx, 'amount'] = float(row['amount'])
+                    except:
+                        pass
+                    data.at[orig_idx, 'note'] = row.get('note', data.at[orig_idx,'note'])
+                    data.at[orig_idx, 'address'] = row.get('address', data.at[orig_idx,'address'])
+                save_data(data)
+                st.success("✅ Lưu thay đổi thành công.")
+                safe_rerun()
+            except Exception as e:
+                st.error("Lưu thay đổi thất bại: " + str(e))
+
+        # Delete selection
+        choices = [f"{i+1}. {details.loc[i,'activity']} ({details.loc[i,'amount']} L) - {details.loc[i,'date']} {details.loc[i,'time']}" for i in range(len(details))]
+        to_delete = st.multiselect("🗑️ Chọn các hoạt động để xóa (chỉ tác động tới hoạt động được chọn):", options=list(range(len(details))), format_func=lambda i: choices[i])
+        if st.button("❌ Xóa hoạt động đã chọn"):
+            if not to_delete:
+                st.warning("Bạn chưa chọn hoạt động nào để xóa.")
+            else:
+                indices_to_drop = [orig_indices[pos] for pos in to_delete]
+                data = data.drop(indices_to_drop).reset_index(drop=True)
+                save_data(data)
+                st.success(f"✅ Đã xóa {len(indices_to_drop)} hoạt động.")
+                safe_rerun()
+
+        if st.button("🗑️ Xóa toàn bộ nhóm này"):
+            data = data[data['group_id'] != sel].reset_index(drop=True)
+            save_data(data)
+            st.success("✅ Đã xóa toàn bộ nhóm.")
+            safe_rerun()
+
+    return data
+
+# ---------------- Charts ----------------
 def plot_activity_bar(df):
     if df.empty:
         st.info("Chưa có dữ liệu để vẽ biểu đồ hoạt động.")
         return
-    exploded = explode_and_allocate(df)
-    agg = exploded.groupby('activity_list')['alloc_amount'].sum().reset_index().rename(columns={'activity_list':'activity','alloc_amount':'total_lit'}).sort_values('total_lit', ascending=False)
+    tmp = df.copy()
+    tmp['activity_list'] = tmp['activity'].astype(str).str.split(', ')
+    tmp = tmp.explode('activity_list').reset_index(drop=True)
+    counts = tmp.groupby(tmp.index)['activity_list'].transform('count')
+    tmp['alloc_amount'] = tmp['amount'].astype(float) / counts.replace(0,1)
+    agg = tmp.groupby('activity_list')['alloc_amount'].sum().reset_index().rename(columns={'activity_list':'activity','alloc_amount':'total_lit'}).sort_values('total_lit', ascending=False)
     chart = alt.Chart(agg).mark_bar().encode(
         x=alt.X('activity:N', sort='-y', title='Hoạt động'),
         y=alt.Y('total_lit:Q', title='Tổng Lít'),
@@ -362,22 +306,43 @@ def plot_activity_bar(df):
     ).properties(height=320)
     st.altair_chart(chart, use_container_width=True)
 
-def plot_week_month(df):
+def plot_week_month_totals(df):
     if df.empty:
         st.info("Chưa có dữ liệu.")
         return
     d = df.copy()
     d['datetime'] = pd.to_datetime(d['date'].astype(str) + " " + d['time'].astype(str), errors='coerce')
-    d['week'] = d['datetime'].dt.isocalendar().week
+    d = d.dropna(subset=['datetime'])
     d['year'] = d['datetime'].dt.isocalendar().year
+    d['week'] = d['datetime'].dt.isocalendar().week
     week_sum = d.groupby(['year','week'])['amount'].sum().reset_index()
-    week_sum['label'] = week_sum['year'].astype(str) + "-W" + week_sum['week'].astype(str)
-    chart = alt.Chart(week_sum).mark_bar().encode(x='label:N', y='amount:Q', tooltip=['label','amount']).properties(height=240)
+    week_sum['label'] = week_sum['year'].astype(str) + '-W' + week_sum['week'].astype(str)
+    chart = alt.Chart(week_sum).mark_bar().encode(x=alt.X('label:N', sort='-y', title='Tuần'), y=alt.Y('amount:Q', title='Tổng Lít'), tooltip=['label','amount']).properties(height=240)
     st.altair_chart(chart, use_container_width=True)
     d['month'] = d['datetime'].dt.to_period('M').astype(str)
     month_sum = d.groupby('month')['amount'].sum().reset_index()
-    chart2 = alt.Chart(month_sum).mark_bar().encode(x='month:N', y='amount:Q', tooltip=['month','amount']).properties(height=240)
+    chart2 = alt.Chart(month_sum).mark_bar().encode(x=alt.X('month:N', sort='-y', title='Tháng'), y=alt.Y('amount:Q', title='Tổng Lít'), tooltip=['month','amount']).properties(height=240)
     st.altair_chart(chart2, use_container_width=True)
+
+def plot_cumulative(df):
+    if df.empty:
+        st.info("Chưa có dữ liệu để vẽ biểu đồ tích lũy.")
+        return
+    d = df.copy()
+    d['datetime'] = pd.to_datetime(d['date'].astype(str) + " " + d['time'].astype(str), errors='coerce')
+    d = d.dropna(subset=['datetime'])
+    daily = d.groupby(d['datetime'].dt.date)['amount'].sum().reset_index().rename(columns={'datetime':'date','amount':'total'})
+    daily['date'] = pd.to_datetime(daily['datetime'].astype(str), errors='coerce') if 'datetime' in daily.columns else pd.to_datetime(daily['date'])
+    # to be safe: create a date column of type datetime
+    daily['date_only'] = pd.to_datetime(daily['date'])
+    daily = daily.sort_values('date_only')
+    daily['cum'] = daily['total'].cumsum()
+    chart = alt.Chart(daily).mark_line(point=True).encode(
+        x=alt.X('date_only:T', title='Ngày'),
+        y=alt.Y('cum:Q', title='Tích lũy (L)'),
+        tooltip=[alt.Tooltip('date_only:T', title='Ngày'), alt.Tooltip('cum:Q', title='Tích lũy (L)')]
+    ).properties(height=300)
+    st.altair_chart(chart, use_container_width=True)
 
 def plot_hour_heatmap(df):
     if df.empty:
@@ -385,177 +350,163 @@ def plot_hour_heatmap(df):
         return
     d = df.copy()
     d['datetime'] = pd.to_datetime(d['date'].astype(str) + " " + d['time'].astype(str), errors='coerce')
+    d = d.dropna(subset=['datetime'])
     d['hour'] = d['datetime'].dt.hour
     heat = d.groupby('hour')['amount'].sum().reset_index()
-    chart = alt.Chart(heat).mark_bar().encode(x=alt.X('hour:O', title='Giờ'), y=alt.Y('amount:Q', title='Tổng Lít'), tooltip=['hour','amount']).properties(height=240)
+    chart = alt.Chart(heat).mark_bar().encode(
+        x=alt.X('hour:O', title='Giờ trong ngày'),
+        y=alt.Y('amount:Q', title='Tổng Lít'),
+        tooltip=['hour','amount']
+    ).properties(height=240)
     st.altair_chart(chart, use_container_width=True)
 
-def plot_cumulative(df):
-    if df.empty:
-        st.info("Chưa có dữ liệu.")
-        return
-    d = df.copy()
-    d['datetime'] = pd.to_datetime(d['date'].astype(str) + " " + d['time'].astype(str), errors='coerce')
-    daily = d.groupby(d['datetime'].dt.date)['amount'].sum().reset_index().rename(columns={'datetime':'date'})
-    daily['cum'] = daily['amount'].cumsum()
-    chart = alt.Chart(daily).mark_line(point=True).encode(x=alt.X('datetime:T', title='Ngày'), y=alt.Y('cum:Q', title='Tích lũy (L)'), tooltip=['datetime','cum']).properties(height=240)
-    st.altair_chart(chart, use_container_width=True)
-
-# -----------------------------
-# Admin panel
-# -----------------------------
-def admin_panel(users_df, data_df):
-    st.header("⚙️ Admin panel")
-    st.subheader("Danh sách người dùng")
-    st.dataframe(users_df[['username','full_name','role','location','address','daily_limit','points']].sort_values('username'), use_container_width=True)
-    st.download_button("Tải users.csv", users_df.to_csv(index=False), "users.csv", "text/csv")
-    st.markdown("---")
-    st.subheader("Quản lý dữ liệu water_usage")
-    uploaded = st.file_uploader("Import CSV water_usage (ghi đè dữ liệu hiện tại)", type=['csv'])
-    if uploaded is not None:
-        try:
-            df_new = pd.read_csv(uploaded)
-            save_data(df_new)
-            st.success("Đã import dữ liệu (ghi đè).")
-        except Exception as e:
-            st.error("Import thất bại: " + str(e))
-    if st.button("Xóa toàn bộ dữ liệu water_usage"):
-        save_data(pd.DataFrame(columns=["username","house_type","location","address","date","time","activity","amount","note","group_id"]))
-        st.success("Đã xóa dữ liệu.")
-    st.markdown("---")
-    st.subheader("Leaderboard (điểm)")
-    scores = []
-    for _, row in users_df.iterrows():
-        u = row['username']
-        limit = float(row.get('daily_limit',200))
-        user_df = data_df[data_df['username']==u].copy()
-        if user_df.empty:
-            continue
-        user_df['datetime'] = pd.to_datetime(user_df['date'].astype(str) + " " + user_df['time'].astype(str), errors='coerce')
-        today = datetime.now().date()
-        today_sum = user_df[user_df['datetime'].dt.date==today]['amount'].sum()
-        score = max(0, limit - today_sum)
-        scores.append({"username":u,"score":score})
-    if scores:
-        s_df = pd.DataFrame(scores).sort_values('score', ascending=False).reset_index(drop=True)
-        st.dataframe(s_df.head(20), use_container_width=True)
-    else:
-        st.info("Chưa đủ dữ liệu để leaderboard.")
-
-# -----------------------------
-# Main app
-# -----------------------------
-def main():
-    st.set_page_config(page_title="Water Loop App (Full)", page_icon="💧", layout="wide")
+# ---------------- Dashboard (input + charts + log) ----------------
+def water_dashboard():
     set_background()
-    users_df = load_users()
-    data_df = load_data()
-    data_df = ensure_group_ids(data_df)
+    st.markdown("<h2 style='color:#05595b;'>💧 Nhập dữ liệu về sử dụng nước</h2>", unsafe_allow_html=True)
 
-    if 'username' not in st.session_state:
-        st.session_state['username'] = None
+    users = load_users()
+    data = load_data()
+    data = ensure_group_ids(data)
 
-    st.sidebar.title("WATER LOOP")
-    if st.session_state['username'] is None:
-        auth_mode = st.sidebar.radio("Bạn muốn:", ["Đăng nhập","Đăng ký"])
-        if auth_mode == "Đăng ký":
-            users_df = register_user(users_df)
+    username = st.session_state.username
+    user_row = users[users['username']==username].iloc[0] if username in users['username'].values else {}
+    house_type = user_row.get('house_type','') if isinstance(user_row, dict) or user_row.empty else user_row.get('house_type','')
+    location = user_row.get('location','') if isinstance(user_row, dict) or user_row.empty else user_row.get('location','')
+    full_name = user_row.get('full_name','') if isinstance(user_row, dict) or user_row.empty else user_row.get('full_name','')
+    daily_limit = float(st.session_state.get('daily_limit', user_row.get('daily_limit',200) if not user_row.empty else 200))
+    reminder_times = st.session_state.get('reminder_times', user_row.get('reminder_times',"").split(",") if not user_row.empty else [])
+
+    # reminders
+    now = datetime.now()
+    for t in reminder_times:
+        try:
+            h,m = map(int, (t or "00:00").split(":"))
+            reminder_time = now.replace(hour=h, minute=m, second=0, microsecond=0)
+            if abs((now - reminder_time).total_seconds()/60) <= 5:
+                st.info(f"⏰ Nhắc nhở: Đến giờ nhập dữ liệu nước! ({t})")
+        except:
+            pass
+
+    # Input
+    st.subheader("📝 Ghi nhận hoạt động")
+    left, right = st.columns([3,1])
+    with left:
+        activity = st.selectbox("Chọn hoạt động:", list(DEFAULT_ACTIVITIES.keys()) + ["➕ Khác"])
+        if activity == "➕ Khác":
+            custom_act = st.text_input("Nhập tên hoạt động:")
+            if custom_act:
+                activity = custom_act
+        amount = st.number_input("Lượng nước (Lít)", min_value=1, value=int(DEFAULT_ACTIVITIES.get(activity,10)))
+        date_input = st.date_input("📅 Ngày sử dụng", value=datetime.now().date(), min_value=datetime(2020,1,1).date(), max_value=datetime.now().date())
+        addr_input = st.text_input("🏠 Địa chỉ", value=st.session_state.get('address', user_row.get('address','') if not isinstance(user_row, dict) else ''))
+        note_quick = st.text_area("Ghi chú nhanh cho lần nhập này (tùy chọn):", height=80)
+
+        if st.button("💾 Lưu hoạt động", use_container_width=True):
+            if not activity:
+                st.warning("Vui lòng chọn hoặc nhập hoạt động.")
+            else:
+                data = add_activity(data, username, full_name, house_type, location, addr_input, activity, amount, note_quick, date_input)
+                # award points simple
+                try:
+                    users = load_users()
+                    users.loc[users['username']==username,'points'] = users.loc[users['username']==username,'points'].astype(float) + (1 if amount>=0 else 0)
+                    save_users(users)
+                except:
+                    pass
+                st.success("✅ Đã lưu hoạt động!")
+                safe_rerun()
+
+    with right:
+        st.markdown("**Tóm tắt hôm nay**")
+        df_user = data[data['username']==username].copy()
+        if not df_user.empty:
+            df_user['datetime'] = pd.to_datetime(df_user['date'].astype(str) + " " + df_user['time'].astype(str), errors='coerce')
+            today_sum = df_user[df_user['datetime'].dt.date == datetime.now().date()]['amount'].sum()
+            st.metric("Tổng (L) hôm nay", f"{int(today_sum)} L")
         else:
-            user = login_user(users_df)
-            if user:
-                st.session_state['username'] = user
-    else:
-        st.sidebar.success(f"Đã đăng nhập: {st.session_state['username']}")
-        if st.sidebar.button("🚪 Đăng xuất"):
-            st.session_state['username'] = None
-            st.experimental_rerun()
+            st.write("Chưa có dữ liệu")
 
-    if st.session_state['username']:
-        username = st.session_state['username']
-        user_row = users_df[users_df['username']==username].iloc[0] if username in users_df['username'].values else None
-        tabs = st.tabs(["Nhập dữ liệu","Phân tích","Nhật ký","Hồ sơ","Admin"])
-        # TAB 1: Input
-        with tabs[0]:
-            st.header("📝 Ghi nhận hoạt động")
-            left, right = st.columns([3,1])
-            with left:
-                activity = st.selectbox("Chọn hoạt động:", list(DEFAULT_ACTIVITIES.keys()) + ["➕ Khác"])
-                if activity == "➕ Khác":
-                    activity = st.text_input("Nhập tên hoạt động:", "")
-                amount = st.number_input("Lượng nước (Lít)", min_value=1, value=int(DEFAULT_ACTIVITIES.get(activity,10)))
-                date_input = st.date_input("📅 Ngày", value=datetime.now().date(), min_value=datetime(2020,1,1).date(), max_value=datetime.now().date())
-                addr_input = st.text_input("🏠 Địa chỉ", value=user_row.get('address') if user_row is not None else "")
-                note = st.text_area("Ghi chú (tuỳ chọn):", height=80)
-                if st.button("💾 Lưu hoạt động"):
-                    data_df, group_id = add_activity(data_df, username, user_row.get('house_type','') if user_row is not None else '', user_row.get('location','') if user_row is not None else '', addr_input, activity, amount, note, date_input)
-                    st.success("Đã lưu!")
-                    # award points (simple)
-                    try:
-                        limit = float(user_row.get('daily_limit',200))
-                        add_pts = 1
-                        if amount < 0.8 * limit:
-                            add_pts += 2
-                        users_df.loc[users_df['username']==username, 'points'] = users_df.loc[users_df['username']==username, 'points'].astype(float) + add_pts
-                        save_users(users_df)
-                    except:
-                        pass
-                    st.experimental_rerun()
-            with right:
-                st.subheader("Tóm tắt nhanh hôm nay")
-                udata = data_df[data_df['username']==username].copy()
-                if not udata.empty:
-                    udata['dt'] = pd.to_datetime(udata['date'].astype(str) + " " + udata['time'].astype(str), errors='coerce')
-                    today_sum = udata[udata['dt'].dt.date==datetime.now().date()]['amount'].sum()
-                    st.metric("Tổng (L) hôm nay", f"{int(today_sum)} L")
-                    pts = int(users_df.loc[users_df['username']==username,'points'].iloc[0])
-                    st.write("Điểm hiện có:", pts)
-                    lvl, emo = pet_level_for_points(pts)
-                    st.write(f"Pet: {emo} — {lvl}")
-                else:
-                    st.write("Chưa có dữ liệu")
-        # TAB 2: Analysis
-        with tabs[1]:
-            st.header("📊 Phân tích")
-            all_users = data_df['username'].unique().tolist()
-            if len(all_users)==0:
-                all_users = [username]
-            default_idx = all_users.index(username) if username in all_users else 0
-            sel_user = st.selectbox("Xem dữ liệu của:", options=all_users, index=default_idx)
-            df_user = data_df[data_df['username']==sel_user].copy()
-            if df_user.empty:
-                st.info("Người dùng này chưa có dữ liệu.")
-            else:
-                addrs = df_user['address'].fillna('').unique().tolist()
-                selected_addrs = st.multiselect("Chọn địa chỉ để phân tích", options=addrs, default=addrs)
-                df_user = df_user[df_user['address'].isin(selected_addrs)]
-                st.subheader("Biểu đồ theo hoạt động")
-                plot_activity_bar(df_user)
-                st.markdown("---")
-                st.subheader("Heatmap giờ sử dụng")
-                plot_hour_heatmap(df_user)
-                st.markdown("---")
-                st.subheader("Tổng theo Tuần / Tháng")
-                plot_week_month(df_user)
-                st.markdown("---")
-                st.subheader("Tích lũy theo thời gian")
-                plot_cumulative(df_user)
-                st.download_button("Tải CSV phân tích", df_user.to_csv(index=False), f"{sel_user}_water_usage.csv", "text/csv")
-        # TAB 3: Log
-        with tabs[2]:
-            st.header("📚 Nhật ký & chỉnh sửa")
-            data_df = show_grouped_editor(data_df, username)
-        # TAB 4: Profile
-        with tabs[3]:
-            st.header("👤 Hồ sơ của bạn")
-            users_df = edit_profile(users_df, username)
-        # TAB 5: Admin
-        with tabs[4]:
-            if user_row is not None and user_row.get('role','user') == 'admin':
-                admin_panel(users_df, data_df)
-            else:
-                st.info("Bạn không phải admin. Yêu cầu admin đăng nhập để xem trang này.")
-    else:
-        st.info("Vui lòng đăng nhập hoặc đăng ký ở sidebar để sử dụng ứng dụng.")
+    st.markdown("---")
 
-if __name__ == "__main__":
+    # Filters & charts
+    st.subheader("🔍 Bộ lọc & Biểu đồ")
+    user_data_all = data[data['username']==username].copy()
+    if not user_data_all.empty:
+        user_data_all['datetime'] = pd.to_datetime(user_data_all['date'].astype(str) + " " + user_data_all['time'].astype(str), errors='coerce')
+        all_addresses = user_data_all['address'].fillna('').unique().tolist()
+        selected_addresses = st.multiselect("Chọn địa chỉ để phân tích", options=all_addresses, default=all_addresses)
+        filtered_data = user_data_all[user_data_all['address'].isin(selected_addresses)].copy()
+
+        time_frame = st.radio("Khoảng thời gian tổng kết", ["Tuần","Tháng"], horizontal=True)
+
+        st.markdown("**📊 Biểu đồ theo hoạt động (tổng Lít)**")
+        try:
+            plot_activity_bar(filtered_data)
+        except Exception as e:
+            st.error("Lỗi vẽ biểu đồ hoạt động: " + str(e))
+
+        st.markdown("---")
+        st.markdown("**📈 Tổng lượng theo khoảng (Tuần/Tháng)**")
+        try:
+            plot_week_month_totals(filtered_data)
+        except Exception as e:
+            st.error("Lỗi vẽ tổng tuần/tháng: " + str(e))
+
+        st.markdown("---")
+        st.markdown("**📈 Biểu đồ tích lũy (hàng ngày)**")
+        try:
+            plot_cumulative(filtered_data)
+        except Exception as e:
+            st.error("Lỗi vẽ biểu đồ tích lũy: " + str(e))
+
+        st.markdown("---")
+        st.markdown("**🕒 Heatmap giờ sử dụng**")
+        try:
+            plot_hour_heatmap(filtered_data)
+        except Exception as e:
+            st.error("Lỗi vẽ heatmap: " + str(e))
+
+        st.download_button("📥 Tải dữ liệu phân tích (CSV)", filtered_data.to_csv(index=False), "water_usage_filtered.csv", "text/csv")
+    else:
+        st.info("Chưa có dữ liệu để hiển thị biểu đồ. Hãy nhập hoạt động trước.")
+
+    st.markdown("---")
+    # grouped log editor
+    data = show_grouped_log_for_user(data, username)
+
+    st.markdown("---")
+    # Pet
+    st.subheader("🌱 Trồng cây nàooo")
+    user_row = load_users()[load_users()['username']==username].iloc[0] if username in load_users()['username'].values else None
+    pts = int(user_row['points']) if user_row is not None else 0
+    lvl, emo = pet_level_for_points(pts)
+    # show pet: compute today usage and warn message
+    df_user = data[data['username']==username].copy()
+    today_df = df_user[pd.to_datetime(df_user['date']).dt.date == datetime.now().date()] if not df_user.empty else pd.DataFrame()
+    today_usage = today_df['amount'].sum() if not today_df.empty else 0
+    if today_usage < 0.8 * daily_limit:
+        pet_emoji, pet_color, pet_msg = emo, "#d4f4dd", "Cây đang phát triển tươi tốt! 💚"
+    elif today_usage <= 1.1 * daily_limit:
+        pet_emoji, pet_color, pet_msg = "🌿", "#ffe5b4", "Cây hơi héo, hãy tiết kiệm thêm ⚠️"
+    else:
+        pet_emoji, pet_color, pet_msg = "🥀", "#ffcccc", "Cây đang héo 😢"
+    st.markdown(f"<div style='font-size:60px;text-align:center'>{pet_emoji}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='padding:14px;border-radius:12px;background:{pet_color};color:black;font-weight:bold;text-align:center;font-size:18px;'>{pet_msg}</div>", unsafe_allow_html=True)
+
+    # Logout
+    if st.button("🚪 Đăng xuất", use_container_width=True):
+        st.session_state.logged_in=False
+        st.session_state.username=None
+        safe_rerun()
+
+# ---------------- Main ----------------
+def main():
+    st.set_page_config(page_title="Water Loop App", page_icon="💧", layout="centered")
+    if "logged_in" not in st.session_state or not st.session_state.logged_in:
+        login_register()
+    else:
+        water_dashboard()
+
+if __name__=="__main__":
     main()
