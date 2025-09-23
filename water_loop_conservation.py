@@ -174,7 +174,7 @@ def login_register():
                 st.session_state.logged_in = True
                 st.session_state.username = username
                 st.session_state.daily_limit = float(user_row.iloc[0].get("daily_limit",200))
-                st.session_state.entries_per_day = int(user_row.iloc[0].get("entries_per_day",3))
+                st.session_state.entries_per_day = float(user_row.iloc[0].get("entries_per_day",3))
                 st.session_state.reminder_times = user_row.iloc[0].get("reminder_times","").split(",") if pd.notna(user_row.iloc[0].get("reminder_times","")) else []
                 st.session_state.address = user_row.iloc[0].get("address","") if "address" in user_row.columns else ""
                 st.success("✅ Đăng nhập thành công!")
@@ -412,7 +412,7 @@ def water_dashboard():
         if not df_user.empty:
             df_user['datetime'] = pd.to_datetime(df_user['date'].astype(str) + " " + df_user['time'].astype(str), errors='coerce')
             today_sum = df_user[df_user['datetime'].dt.date == datetime.now().date()]['amount'].sum()
-            st.metric("Tổng (L) hôm nay", f"{int(today_sum)} L")
+            st.metric("Tổng (L) hôm nay", f"{float(today_sum)} L")
         else:
             st.write("Chưa có dữ liệu")
 
@@ -512,4 +512,5 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
