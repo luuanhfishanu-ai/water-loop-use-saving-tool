@@ -406,7 +406,7 @@ def water_dashboard():
 
         st.markdown('---')
         # --- Pet ảo ---
-        st.subheader('🌱 Hello, mình là cây, bạn dùng nước hợp lí, mình sẽ tươi tốt!!!')
+        st.subheader('🌱 Xin chào, mình là cây!')
         today_data = data[(data['username']==username) & (pd.to_datetime(data['date']).dt.date == datetime.now().date())]
         today_usage = today_data['amount'].sum() if not today_data.empty else 0
         if today_usage < 0.8*daily_limit:
@@ -434,6 +434,7 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
 
 
