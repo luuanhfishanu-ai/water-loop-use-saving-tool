@@ -218,10 +218,6 @@ def water_dashboard():
     )
     st.altair_chart(pie_week, use_container_width=True)
 
-    st.write(" 📝 Ghi chú: ")
-    st.markdown("🌳 Cây xanh: lượng nước trong ngưỡng")
-    st.markdown("🥀 Cây héo: vượt ngưỡng nước")
-
     # --- Line chart tổng lượng nước theo tuần ---
     user_data["year"] = user_data["datetime"].dt.isocalendar().year
     user_data["week"] = user_data["datetime"].dt.isocalendar().week
@@ -238,11 +234,11 @@ def water_dashboard():
     st.subheader("Trồng cây nàoooo")
     st.markdown(f"<div style='font-size:60px;text-align:center'>{pet}</div>", unsafe_allow_html=True)
     if today_usage < 0.8*daily_limit:
-        st.success("Cây đang phát triển tươi tốt!")
+        st.success("Cây đang phát triển tươi tốt đó!🌳")
     elif today_usage <= 1.1*daily_limit:
         st.warning("Cây hơi héo, hãy tiết kiệm thêm nhé.")
     else:
-        st.error("Cây đang héo / Cá buồn 😢")
+        st.error("Cây đang héo 🥀 😢")
 
     # --- Download CSV ---
     st.download_button("📥 Tải dữ liệu CSV", user_data.to_csv(index=False), "water_usage.csv", "text/csv")
@@ -263,4 +259,5 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
