@@ -204,10 +204,6 @@ def water_dashboard():
     ).properties(height=300)
     st.altair_chart(bar_chart, use_container_width=True)
 
-    # --- Ghi chú hoạt động ---
-    st.write("### 📝 Ghi chú:")
-    for act in act_today_sum["activity"]:
-        st.markdown(f"- {act}")
 
     # --- Pie chart tuần cây ---
     week_start = today - timedelta(days=6)
@@ -222,7 +218,7 @@ def water_dashboard():
     )
     st.altair_chart(pie_week, use_container_width=True)
 
-    st.write("### 📝 Ghi chú: ")
+    st.write(" 📝 Ghi chú: ")
     st.markdown("🌳 Cây xanh: lượng nước trong ngưỡng")
     st.markdown("🥀 Cây héo: vượt ngưỡng nước")
 
@@ -267,3 +263,4 @@ def main():
 
 if __name__=="__main__":
     main()
+
