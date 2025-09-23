@@ -17,12 +17,14 @@ def safe_rerun():
 
 # ----------------- Gradient Background -----------------
 def set_background():
-    st.markdown("""
+    st.markdown(
+        """
         <style>
         .stApp { background: linear-gradient(120deg, #a1c4fd, #c2e9fb); }
         .stButton>button { background-color: #70c1b3; color: white; border-radius: 8px; padding: 0.5em 1em; }
         </style>
-        """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True
+    )
 
 # ----------------- Login & Register -----------------
 def login_register():
@@ -35,11 +37,11 @@ def login_register():
     username = st.text_input("👤 Tên đăng nhập")
     password = st.text_input("🔒 Mật khẩu", type="password")
 
-    # --- Đọc file users.csv, nếu thiếu cột address thì tạo mặc định ---
+    # --- Đọc file users.csv, thêm cột address nếu thiếu ---
     try:
         users = pd.read_csv(USERS_FILE)
         if "address" not in users.columns:
-            users["address"] = ""  # thêm cột trống nếu chưa có
+            users["address"] = ""
     except FileNotFoundError:
         users = pd.DataFrame(columns=[
             "username","password","house_type","location","address","daily_limit","entries_per_day","reminder_times"
@@ -123,11 +125,16 @@ def water_dashboard():
         data = pd.DataFrame(columns=["username","house_type","location","address","date","time","activity","amount"])
 
     username = st.session_state.username
+
+    # --- Load user info, thêm cột address nếu thiếu ---
     users = pd.read_csv(USERS_FILE)
+    if "address" not in users.columns:
+        users["address"] = ""
     user_info = users[users["username"]==username].iloc[0]
+
     house_type = user_info["house_type"]
     location = user_info["location"]
-    address = user_info["address"]
+    address = user_info["address"] if "address" in user_info.index else ""
     daily_limit = st.session_state.daily_limit
     entries_per_day = st.session_state.entries_per_day
     reminder_times = st.session_state.reminder_times
@@ -175,6 +182,7 @@ def water_dashboard():
     # --- Quản lý & xóa hoạt động ---
     st.subheader("🗑️ Quản lý hoạt động")
     user_data = data[data["username"]==username].copy()
+
     if not user_data.empty:
         user_data["datetime"] = pd.to_datetime(user_data["date"] + " " + user_data["time"])
         user_data = user_data.sort_values("datetime", ascending=False).reset_index(drop=True)
@@ -190,7 +198,7 @@ def water_dashboard():
         user_data["Cảnh báo"] = user_data["Tổng Lượng Ngày (L)"].apply(warning_label)
         user_data["Xóa"] = False
 
-        # --- Data editor để xóa hoặc sửa ---
+        # --- Data editor ---
         def row_color(row):
             if "💚" in row["Cảnh báo"]: return ["#d4f4dd"]*9
             elif "🟠" in row["Cảnh báo"]: return ["#ffe5b4"]*9
@@ -281,4 +289,3 @@ def main():
 
 if __name__=="__main__":
     main()
-
