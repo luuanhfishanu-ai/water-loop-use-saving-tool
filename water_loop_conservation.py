@@ -20,8 +20,8 @@ def set_background():
     st.markdown(
         """
         <style>
-        .stApp { background: linear-gradient(120deg, #a1c4fd, #c2e9fb); }
-        .stButton>button { background-color: #70c1b3; color: white; border-radius: 8px; padding: 0.5em 1em; }
+        .stApp { background: linear-gradient(120deg, #eff6ff, #dbeafe); }
+        .stButton>button { background-color: #2563EB; color: white; border-radius: 10px; padding: 0.6em 1.2em; }
         </style>
         """, unsafe_allow_html=True
     )
@@ -434,3 +434,4 @@ def main():
 
 if __name__=="__main__":
     main()
+
