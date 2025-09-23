@@ -37,7 +37,7 @@ def login_register():
     username = st.text_input("👤 Tên đăng nhập")
     password = st.text_input("🔒 Mật khẩu", type="password")
 
-    # --- Đọc file users.csv, thêm cột address nếu thiếu ---
+    # --- Load users ---
     try:
         users = pd.read_csv(USERS_FILE)
         if "address" not in users.columns:
@@ -48,7 +48,7 @@ def login_register():
         ])
 
     if mode=="Đăng ký":
-        default_house_types = ["Chung cư","Nhà riêng","Khác","Biệt thự","Nhà trọ","Khu tập thể","Kí túc xá"]
+        default_house_types = ["Chung cư","Nhà riêng","Biệt thự","Nhà trọ","Khu tập thể","Kí túc xá"]
         house_type = st.selectbox("🏠 Loại hộ gia đình", default_house_types + ["➕ Khác"])
         if house_type == "➕ Khác":
             house_type = st.text_input("Nhập loại nhà của bạn:")
@@ -116,7 +116,7 @@ DEFAULT_ACTIVITIES = {
 
 def water_dashboard():
     set_background()
-    st.markdown("<h2 style='color:#05595b;'>💧 Dashboard sử dụng nước</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color:#05595b;'>💧 Nhập dữ liệu về sử dụng nước</h2>", unsafe_allow_html=True)
 
     # --- Load dữ liệu ---
     try:
@@ -125,8 +125,6 @@ def water_dashboard():
         data = pd.DataFrame(columns=["username","house_type","location","address","date","time","activity","amount"])
 
     username = st.session_state.username
-
-    # --- Load user info, thêm cột address nếu thiếu ---
     users = pd.read_csv(USERS_FILE)
     if "address" not in users.columns:
         users["address"] = ""
@@ -139,18 +137,18 @@ def water_dashboard():
     entries_per_day = st.session_state.entries_per_day
     reminder_times = st.session_state.reminder_times
 
-    # --- Nhắc nhở giờ ±5 phút ---
+    # --- Dashboard ghi nhận và thống kê ---
     now = datetime.now()
     for t in reminder_times:
-        h, m = map(int, t.split(":"))
+        h,m = map(int, t.split(":"))
         reminder_time = now.replace(hour=h, minute=m, second=0, microsecond=0)
         delta_minutes = abs((now - reminder_time).total_seconds()/60)
-        if delta_minutes <= 5:
+        if delta_minutes <=5:
             st.info(f"⏰ Nhắc nhở: Đã đến giờ nhập dữ liệu nước! (Khoảng {t})")
 
-    # --- Ghi nhận hoạt động ---
+    # Ghi nhận
     st.subheader("📝 Ghi nhận hoạt động")
-    col1, col2 = st.columns(2)
+    col1,col2 = st.columns(2)
     with col1:
         activity = st.selectbox("Chọn hoạt động:", list(DEFAULT_ACTIVITIES.keys())+["➕ Khác"])
     with col2:
@@ -161,7 +159,7 @@ def water_dashboard():
 
     amount = st.number_input("Lượng nước đã dùng (Lít)", min_value=1, value=DEFAULT_ACTIVITIES.get(activity,10))
     date_input = st.date_input("📅 Ngày sử dụng", value=datetime.now().date(), min_value=datetime(2020,1,1).date(), max_value=datetime.now().date())
-    addr_input = st.text_input("🏠 Nhập địa chỉ (sửa nếu khác địa chỉ đăng ký)", value=address)
+    addr_input = st.text_input("🏠 Nhập địa chỉ", value=address)
 
     if st.button("💾 Lưu hoạt động", use_container_width=True):
         new_entry = pd.DataFrame([{
@@ -179,18 +177,14 @@ def water_dashboard():
         st.success("✅ Đã lưu hoạt động!")
         safe_rerun()
 
-    # --- Quản lý & xóa hoạt động ---
+    # Quản lý hoạt động, xóa, Data Editor
     st.subheader("🗑️ Quản lý hoạt động")
     user_data = data[data["username"]==username].copy()
-
     if not user_data.empty:
         user_data["datetime"] = pd.to_datetime(user_data["date"] + " " + user_data["time"])
         user_data = user_data.sort_values("datetime", ascending=False).reset_index(drop=True)
-
-        # Tính tổng lượng nước mỗi ngày
         daily_sum = user_data.groupby("date")["amount"].sum().to_dict()
         user_data["Tổng Lượng Ngày (L)"] = user_data["date"].map(daily_sum)
-
         def warning_label(amount):
             if amount < 0.8*daily_limit: return "💚 Ổn"
             elif amount <= 1.1*daily_limit: return "🟠 Gần ngưỡng"
@@ -198,11 +192,10 @@ def water_dashboard():
         user_data["Cảnh báo"] = user_data["Tổng Lượng Ngày (L)"].apply(warning_label)
         user_data["Xóa"] = False
 
-        # --- Data editor ---
         def row_color(row):
-            if "💚" in row["Cảnh báo"]: return ["#d4f4dd"]*9
-            elif "🟠" in row["Cảnh báo"]: return ["#ffe5b4"]*9
-            else: return ["#ffcccc"]*9
+            if "💚" in row["Cảnh báo"]: return ["#d4f4dd"]*8
+            elif "🟠" in row["Cảnh báo"]: return ["#ffe5b4"]*8
+            else: return ["#ffcccc"]*8
         row_colors = [row_color(r) for _, r in user_data.iterrows()]
 
         edited_df = st.data_editor(
@@ -218,62 +211,54 @@ def water_dashboard():
             if not to_delete.empty:
                 indices_to_delete = user_data.loc[to_delete.index].index
                 data = data.drop(indices_to_delete)
-                data.to_csv(DATA_FILE, index=False)
+                data.to_csv(DATA_FILE,index=False)
                 st.success(f"✅ Đã xóa {len(to_delete)} hoạt động!")
                 safe_rerun()
             else:
                 st.warning("⚠️ Bạn chưa chọn hoạt động nào để xóa.")
 
-        # --- Bộ lọc địa chỉ và thời gian ---
+        # --- Bộ lọc địa chỉ ---
         st.subheader("🔍 Bộ lọc phân tích")
         all_addresses = user_data["address"].unique().tolist()
         selected_addresses = st.multiselect("Chọn địa chỉ", options=all_addresses, default=all_addresses)
         filtered_data = user_data[user_data["address"].isin(selected_addresses)]
 
-        # Chọn khoảng thời gian: tuần/tháng
-        time_frame = st.radio("Chọn khoảng thời gian", ["Tuần", "Tháng"], horizontal=True)
-
+        # Khoảng thời gian: Tuần / Tháng
+        time_frame = st.radio("Chọn khoảng thời gian", ["Tuần","Tháng"], horizontal=True)
         if time_frame=="Tuần":
             filtered_data["year"] = filtered_data["datetime"].dt.isocalendar().year
             filtered_data["week"] = filtered_data["datetime"].dt.isocalendar().week
             week_sum = filtered_data.groupby(["address","year","week"])["amount"].sum().reset_index()
             week_sum["year_week"] = week_sum["year"].astype(str) + "-W" + week_sum["week"].astype(str)
-            chart_week = alt.Chart(week_sum).mark_line(point=True).encode(
-                x="year_week",
-                y="amount",
-                color="address:N",
-                tooltip=["address","year_week","amount"]
-            ).properties(width=700, height=350)
-            st.altair_chart(chart_week, use_container_width=True)
-        else:  # Tháng
+            chart = alt.Chart(week_sum).mark_line(point=True).encode(
+                x="year_week", y="amount", color="address:N", tooltip=["address","year_week","amount"]
+            ).properties(width=700,height=350)
+            st.altair_chart(chart,use_container_width=True)
+        else:
             filtered_data["month"] = filtered_data["datetime"].dt.to_period("M").astype(str)
             month_sum = filtered_data.groupby(["address","month"])["amount"].sum().reset_index()
-            chart_month = alt.Chart(month_sum).mark_line(point=True).encode(
-                x="month",
-                y="amount",
-                color="address:N",
-                tooltip=["address","month","amount"]
-            ).properties(width=700, height=350)
-            st.altair_chart(chart_month, use_container_width=True)
+            chart = alt.Chart(month_sum).mark_line(point=True).encode(
+                x="month", y="amount", color="address:N", tooltip=["address","month","amount"]
+            ).properties(width=700,height=350)
+            st.altair_chart(chart,use_container_width=True)
 
-        # --- Pet ảo ---
+        # Pet ảo
         st.subheader("🌱 Trồng cây ảo")
         today_data = user_data[user_data["datetime"].dt.date==datetime.now().date()]
         today_usage = today_data["amount"].sum() if not today_data.empty else 0
         if today_usage < 0.8*daily_limit:
-            pet_emoji, pet_color, pet_msg = "🌳", "#d4f4dd", "Cây đang phát triển tươi tốt! 💚"
+            pet_emoji, pet_color, pet_msg = "🌳","#d4f4dd","Cây đang phát triển tươi tốt! 💚"
         elif today_usage <= 1.1*daily_limit:
-            pet_emoji, pet_color, pet_msg = "🌿", "#ffe5b4", "Cây hơi héo, hãy tiết kiệm thêm ⚠️"
+            pet_emoji, pet_color, pet_msg = "🌿","#ffe5b4","Cây hơi héo, hãy tiết kiệm thêm ⚠️"
         else:
-            pet_emoji, pet_color, pet_msg = "🥀", "#ffcccc", "Cây đang héo 😢"
-
+            pet_emoji, pet_color, pet_msg = "🥀","#ffcccc","Cây đang héo 😢"
         st.markdown(f"<div style='font-size:60px;text-align:center'>{pet_emoji}</div>", unsafe_allow_html=True)
         st.markdown(f"<div style='padding:14px;border-radius:12px;background:{pet_color};color:white;font-weight:bold;text-align:center;font-size:18px;'>{pet_msg}</div>", unsafe_allow_html=True)
 
-        # --- Download CSV ---
-        st.download_button("📥 Tải dữ liệu CSV", filtered_data.to_csv(index=False), "water_usage.csv", "text/csv")
+        # Download CSV
+        st.download_button("📥 Tải dữ liệu CSV", filtered_data.to_csv(index=False),"water_usage.csv","text/csv")
 
-    # --- Logout ---
+    # Logout
     if st.button("🚪 Đăng xuất", use_container_width=True):
         st.session_state.logged_in=False
         st.session_state.username=None
