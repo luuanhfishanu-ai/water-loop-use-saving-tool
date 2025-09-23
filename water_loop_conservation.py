@@ -35,8 +35,11 @@ def login_register():
     username = st.text_input("👤 Tên đăng nhập")
     password = st.text_input("🔒 Mật khẩu", type="password")
 
+    # --- Đọc file users.csv, nếu thiếu cột address thì tạo mặc định ---
     try:
         users = pd.read_csv(USERS_FILE)
+        if "address" not in users.columns:
+            users["address"] = ""  # thêm cột trống nếu chưa có
     except FileNotFoundError:
         users = pd.DataFrame(columns=[
             "username","password","house_type","location","address","daily_limit","entries_per_day","reminder_times"
@@ -99,7 +102,7 @@ def login_register():
                 st.session_state.daily_limit = user_row.iloc[0]["daily_limit"]
                 st.session_state.entries_per_day = user_row.iloc[0]["entries_per_day"]
                 st.session_state.reminder_times = user_row.iloc[0]["reminder_times"].split(",") if pd.notna(user_row.iloc[0]["reminder_times"]) else []
-                st.session_state.address = user_row.iloc[0]["address"]
+                st.session_state.address = user_row.iloc[0]["address"] if "address" in user_row.columns else ""
                 st.success("✅ Đăng nhập thành công!")
                 safe_rerun()
 
@@ -278,3 +281,4 @@ def main():
 
 if __name__=="__main__":
     main()
+
