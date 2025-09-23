@@ -17,14 +17,12 @@ def safe_rerun():
 
 # ----------------- Gradient Background -----------------
 def set_background():
-    st.markdown(
-        """
+    st.markdown("""
         <style>
         .stApp { background: linear-gradient(120deg, #a1c4fd, #c2e9fb); }
         .stButton>button { background-color: #70c1b3; color: white; border-radius: 8px; padding: 0.5em 1em; }
         </style>
-        """, unsafe_allow_html=True
-    )
+        """, unsafe_allow_html=True)
 
 # ----------------- Login & Register -----------------
 def login_register():
@@ -41,7 +39,7 @@ def login_register():
         users = pd.read_csv(USERS_FILE)
     except FileNotFoundError:
         users = pd.DataFrame(columns=[
-            "username","password","house_type","location","daily_limit","entries_per_day","reminder_times"
+            "username","password","house_type","location","address","daily_limit","entries_per_day","reminder_times"
         ])
 
     if mode=="Đăng ký":
@@ -58,14 +56,19 @@ def login_register():
             "Thành phố Hà Nội","Thành phố Huế","Tỉnh Lai Châu","Tỉnh Điện Biên","Tỉnh Sơn La","Tỉnh Lạng Sơn",
             "Tỉnh Quảng Ninh","Tỉnh Thanh Hoá","Tỉnh Nghệ An","Tỉnh Hà Tĩnh","Tỉnh Cao Bằng"
         ])
+        address = st.text_input("🏠 Địa chỉ cụ thể (số nhà, đường...)")
+
         daily_limit = st.number_input("⚖️ Ngưỡng nước hàng ngày (Lít)", min_value=50, value=200)
         entries_per_day = st.slider("🔔 Số lần nhập dữ liệu/ngày", 1, 5, 3)
 
         reminder_times = st.multiselect(
-            "⏰ Chọn giờ nhắc nhở trong ngày",
+            "⏰ Chọn giờ nhắc nhở trong ngày (tối đa 5 lần)",
             options=[f"{h:02d}:00" for h in range(0,24)],
             default=["08:00","12:00","18:00"]
         )
+        if len(reminder_times) > 5:
+            st.warning("⚠️ Chỉ chọn tối đa 5 giờ nhắc nhở. Mặc định giữ 5 giờ đầu.")
+            reminder_times = reminder_times[:5]
 
         if st.button("Đăng ký", use_container_width=True):
             if username in users["username"].values:
@@ -76,6 +79,7 @@ def login_register():
                     "password": password,
                     "house_type": house_type,
                     "location": location,
+                    "address": address,
                     "daily_limit": daily_limit,
                     "entries_per_day": entries_per_day,
                     "reminder_times": ",".join(reminder_times)
@@ -95,6 +99,7 @@ def login_register():
                 st.session_state.daily_limit = user_row.iloc[0]["daily_limit"]
                 st.session_state.entries_per_day = user_row.iloc[0]["entries_per_day"]
                 st.session_state.reminder_times = user_row.iloc[0]["reminder_times"].split(",") if pd.notna(user_row.iloc[0]["reminder_times"]) else []
+                st.session_state.address = user_row.iloc[0]["address"]
                 st.success("✅ Đăng nhập thành công!")
                 safe_rerun()
 
@@ -112,16 +117,26 @@ def water_dashboard():
     try:
         data = pd.read_csv(DATA_FILE)
     except FileNotFoundError:
-        data = pd.DataFrame(columns=["username","house_type","location","date","time","activity","amount"])
+        data = pd.DataFrame(columns=["username","house_type","location","address","date","time","activity","amount"])
 
     username = st.session_state.username
     users = pd.read_csv(USERS_FILE)
     user_info = users[users["username"]==username].iloc[0]
     house_type = user_info["house_type"]
     location = user_info["location"]
+    address = user_info["address"]
     daily_limit = st.session_state.daily_limit
     entries_per_day = st.session_state.entries_per_day
     reminder_times = st.session_state.reminder_times
+
+    # --- Nhắc nhở giờ ±5 phút ---
+    now = datetime.now()
+    for t in reminder_times:
+        h, m = map(int, t.split(":"))
+        reminder_time = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        delta_minutes = abs((now - reminder_time).total_seconds()/60)
+        if delta_minutes <= 5:
+            st.info(f"⏰ Nhắc nhở: Đã đến giờ nhập dữ liệu nước! (Khoảng {t})")
 
     # --- Ghi nhận hoạt động ---
     st.subheader("📝 Ghi nhận hoạt động")
@@ -136,12 +151,14 @@ def water_dashboard():
 
     amount = st.number_input("Lượng nước đã dùng (Lít)", min_value=1, value=DEFAULT_ACTIVITIES.get(activity,10))
     date_input = st.date_input("📅 Ngày sử dụng", value=datetime.now().date(), min_value=datetime(2020,1,1).date(), max_value=datetime.now().date())
+    addr_input = st.text_input("🏠 Nhập địa chỉ (sửa nếu khác địa chỉ đăng ký)", value=address)
 
     if st.button("💾 Lưu hoạt động", use_container_width=True):
         new_entry = pd.DataFrame([{
             "username": username,
             "house_type": house_type,
             "location": location,
+            "address": addr_input,
             "date": date_input.strftime("%Y-%m-%d"),
             "time": datetime.now().strftime("%H:%M:%S"),
             "activity": activity,
@@ -158,26 +175,33 @@ def water_dashboard():
     if not user_data.empty:
         user_data["datetime"] = pd.to_datetime(user_data["date"] + " " + user_data["time"])
         user_data = user_data.sort_values("datetime", ascending=False).reset_index(drop=True)
+
+        # Tính tổng lượng nước mỗi ngày
         daily_sum = user_data.groupby("date")["amount"].sum().to_dict()
         user_data["Tổng Lượng Ngày (L)"] = user_data["date"].map(daily_sum)
+
         def warning_label(amount):
             if amount < 0.8*daily_limit: return "💚 Ổn"
             elif amount <= 1.1*daily_limit: return "🟠 Gần ngưỡng"
             else: return "🔴 Vượt ngưỡng"
         user_data["Cảnh báo"] = user_data["Tổng Lượng Ngày (L)"].apply(warning_label)
         user_data["Xóa"] = False
+
+        # --- Data editor để xóa hoặc sửa ---
         def row_color(row):
-            if "💚" in row["Cảnh báo"]: return ["#d4f4dd"]*len(row)
-            elif "🟠" in row["Cảnh báo"]: return ["#ffe5b4"]*len(row)
-            else: return ["#ffcccc"]*len(row)
-        row_colors = user_data.apply(row_color, axis=1)
+            if "💚" in row["Cảnh báo"]: return ["#d4f4dd"]*9
+            elif "🟠" in row["Cảnh báo"]: return ["#ffe5b4"]*9
+            else: return ["#ffcccc"]*9
+        row_colors = [row_color(r) for _, r in user_data.iterrows()]
+
         edited_df = st.data_editor(
-            user_data[["date","time","activity","amount","Tổng Lượng Ngày (L)","Cảnh báo","Xóa"]],
+            user_data[["date","time","activity","amount","Tổng Lượng Ngày (L)","Cảnh báo","Xóa","address"]],
             num_rows="dynamic",
             use_container_width=True,
             hide_index=True,
             row_colors=row_colors
         )
+
         if st.button("❌ Xóa các hoạt động đã chọn"):
             to_delete = edited_df[edited_df["Xóa"]==True]
             if not to_delete.empty:
@@ -188,87 +212,55 @@ def water_dashboard():
                 safe_rerun()
             else:
                 st.warning("⚠️ Bạn chưa chọn hoạt động nào để xóa.")
-    else:
-        st.info("Chưa có dữ liệu nào để xóa.")
 
-    # --- Thống kê ---
-    st.subheader("📊 Thống kê sử dụng nước")
-    if user_data.empty:
-        st.info("Chưa có dữ liệu nào. Hãy nhập hoạt động để bắt đầu theo dõi!")
-        return
+        # --- Bộ lọc địa chỉ và thời gian ---
+        st.subheader("🔍 Bộ lọc phân tích")
+        all_addresses = user_data["address"].unique().tolist()
+        selected_addresses = st.multiselect("Chọn địa chỉ", options=all_addresses, default=all_addresses)
+        filtered_data = user_data[user_data["address"].isin(selected_addresses)]
 
-    user_data["datetime"] = pd.to_datetime(user_data["date"] + " " + user_data["time"])
-    today = datetime.now().date()
-    today_data = user_data[user_data["datetime"].dt.date==today].copy()
-    today_data = today_data.sort_values("datetime")
-    today_data["entry_group"] = (today_data["datetime"].diff().dt.total_seconds().fillna(999)/60 > 30).cumsum()
-    today_entries = today_data["entry_group"].nunique()
-    today_usage = today_data["amount"].sum()
-    if today_entries < entries_per_day:
-        st.warning(f"⚠️ Bạn chưa nhập đủ {entries_per_day} lần hôm nay ({today_entries}/{entries_per_day}).")
-    else:
-        st.success(f"✅ Bạn đã nhập đủ {entries_per_day} lần hôm nay.")
+        # Chọn khoảng thời gian: tuần/tháng
+        time_frame = st.radio("Chọn khoảng thời gian", ["Tuần", "Tháng"], horizontal=True)
 
-    # --- Pet ảo trực quan ---
-    st.subheader("🌱 Trồng cây ảo (Trực quan)")
-    if today_usage < 0.8*daily_limit:
-        pet_emoji, pet_color, pet_msg = "🌳", "#d4f4dd", "Cây đang phát triển tươi tốt! 💚"
-    elif today_usage <= 1.1*daily_limit:
-        pet_emoji, pet_color, pet_msg = "🌿", "#ffe5b4", "Cây hơi héo, hãy tiết kiệm thêm nhé. 🟠"
-    else:
-        pet_emoji, pet_color, pet_msg = "🥀", "#ffcccc", "Cây đang héo! 🔴 Hãy chú ý sử dụng nước."
-    st.markdown(
-        f"<div style='padding:20px;border-radius:12px;background:{pet_color};text-align:center;font-size:80px'>{pet_emoji}</div>",
-        unsafe_allow_html=True
-    )
-    st.markdown(f"<div style='text-align:center;font-size:18px;font-weight:bold'>{pet_msg}</div>", unsafe_allow_html=True)
+        if time_frame=="Tuần":
+            filtered_data["year"] = filtered_data["datetime"].dt.isocalendar().year
+            filtered_data["week"] = filtered_data["datetime"].dt.isocalendar().week
+            week_sum = filtered_data.groupby(["address","year","week"])["amount"].sum().reset_index()
+            week_sum["year_week"] = week_sum["year"].astype(str) + "-W" + week_sum["week"].astype(str)
+            chart_week = alt.Chart(week_sum).mark_line(point=True).encode(
+                x="year_week",
+                y="amount",
+                color="address:N",
+                tooltip=["address","year_week","amount"]
+            ).properties(width=700, height=350)
+            st.altair_chart(chart_week, use_container_width=True)
+        else:  # Tháng
+            filtered_data["month"] = filtered_data["datetime"].dt.to_period("M").astype(str)
+            month_sum = filtered_data.groupby(["address","month"])["amount"].sum().reset_index()
+            chart_month = alt.Chart(month_sum).mark_line(point=True).encode(
+                x="month",
+                y="amount",
+                color="address:N",
+                tooltip=["address","month","amount"]
+            ).properties(width=700, height=350)
+            st.altair_chart(chart_month, use_container_width=True)
 
-    # --- Biểu đồ bar/pie trực quan ---
-    act_today_sum = today_data.groupby("activity")["amount"].sum().reset_index()
-    act_today_sum = act_today_sum.sort_values("amount", ascending=False)
-    if today_usage < 0.8*daily_limit: bar_color_value = "#77dd77"
-    elif today_usage <= 1.1*daily_limit: bar_color_value = "#ffb347"
-    else: bar_color_value = "#ff6961"
-    bar_chart = alt.Chart(act_today_sum).mark_bar(color=bar_color_value).encode(
-        x=alt.X("amount:Q", title="Lượng nước (Lít)"),
-        y=alt.Y("activity:N", sort="-x", title="Hoạt động"),
-        tooltip=["activity","amount"]
-    ).properties(height=300)
-    st.altair_chart(bar_chart, use_container_width=True)
+        # --- Pet ảo ---
+        st.subheader("🌱 Trồng cây ảo")
+        today_data = user_data[user_data["datetime"].dt.date==datetime.now().date()]
+        today_usage = today_data["amount"].sum() if not today_data.empty else 0
+        if today_usage < 0.8*daily_limit:
+            pet_emoji, pet_color, pet_msg = "🌳", "#d4f4dd", "Cây đang phát triển tươi tốt! 💚"
+        elif today_usage <= 1.1*daily_limit:
+            pet_emoji, pet_color, pet_msg = "🌿", "#ffe5b4", "Cây hơi héo, hãy tiết kiệm thêm ⚠️"
+        else:
+            pet_emoji, pet_color, pet_msg = "🥀", "#ffcccc", "Cây đang héo 😢"
 
-    week_start = today - timedelta(days=6)
-    week_data = user_data[(user_data["datetime"].dt.date >= week_start) & (user_data["datetime"].dt.date <= today)]
-    week_sum = week_data.groupby("date")["amount"].sum().reset_index()
-    def week_status_color(x):
-        if x <= daily_limit*0.8: return "#77dd77"
-        elif x <= daily_limit*1.1: return "#ffb347"
-        else: return "#ff6961"
-    week_sum["color"] = week_sum["amount"].apply(week_status_color)
-    week_sum["status"] = week_sum["amount"].apply(lambda x: "Cây xanh" if x <= daily_limit else "Cây héo")
-    pie_week = alt.Chart(week_sum).mark_arc(innerRadius=50).encode(
-        theta=alt.Theta("amount", type="quantitative"),
-        color=alt.Color("color:N", scale=None),
-        tooltip=["date","amount","status"]
-    )
-    st.altair_chart(pie_week, use_container_width=True)
+        st.markdown(f"<div style='font-size:60px;text-align:center'>{pet_emoji}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='padding:14px;border-radius:12px;background:{pet_color};color:white;font-weight:bold;text-align:center;font-size:18px;'>{pet_msg}</div>", unsafe_allow_html=True)
 
-    user_data["year"] = user_data["datetime"].dt.isocalendar().year
-    user_data["week"] = user_data["datetime"].dt.isocalendar().week
-    week_line = user_data.groupby(["year","week"])["amount"].sum().reset_index()
-    week_line["year_week"] = week_line["year"].astype(str) + "-W" + week_line["week"].astype(str)
-    line_chart = alt.Chart(week_line).mark_line(point=True, color="#05595b").encode(
-        x="year_week", y="amount", tooltip=["year_week","amount"]
-    ).properties(width=700, height=350)
-    st.altair_chart(line_chart,use_container_width=True)
-
-    # --- Download CSV ---
-    st.download_button("📥 Tải dữ liệu CSV", user_data.to_csv(index=False), "water_usage.csv", "text/csv")
-
-    # --- Nhắc nhở popup nếu vượt ngưỡng ---
-    if today_usage > daily_limit:
-        st.warning(f"⚠️ Hôm nay bạn đã vượt ngưỡng {daily_limit} L! ({today_usage} L) Hãy tiết kiệm nước nhé!")
-    elif today_usage >= 0.8*daily_limit:
-        st.info(f"ℹ️ Bạn đã dùng gần ngưỡng hôm nay: {today_usage} L / {daily_limit} L")
+        # --- Download CSV ---
+        st.download_button("📥 Tải dữ liệu CSV", filtered_data.to_csv(index=False), "water_usage.csv", "text/csv")
 
     # --- Logout ---
     if st.button("🚪 Đăng xuất", use_container_width=True):
