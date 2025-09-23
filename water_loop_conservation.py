@@ -213,7 +213,7 @@ def water_dashboard():
         reminder_time = now.replace(hour=h, minute=m, second=0, microsecond=0)
         delta_minutes = abs((now - reminder_time).total_seconds()/60)
         if delta_minutes <=5:
-            st.info(f"⏰ Nhắc nhở: Đã đến giờ nhập dữ liệu nước! (Khoảng {t})")
+            st.info(f"⏰ Nhắc nhở: Đến giờ nhập giữ liệu nước bạn ơiii! (Khoảng {t})")
 
     # --- Layout: trái (nhập + chart) | phải (ghi chú + bảng) ---
     left, right = st.columns([2,1])
@@ -406,15 +406,15 @@ def water_dashboard():
 
         st.markdown('---')
         # --- Pet ảo ---
-        st.subheader('🌱 Trồng cây ảo')
+        st.subheader('🌱 Hello, mình là cây, bạn dùng nước hợp lí, mình sẽ tươi tốt!!!')
         today_data = data[(data['username']==username) & (pd.to_datetime(data['date']).dt.date == datetime.now().date())]
         today_usage = today_data['amount'].sum() if not today_data.empty else 0
         if today_usage < 0.8*daily_limit:
-            pet_emoji, pet_color, pet_msg = "🌳","#3B82F6","Cây đang phát triển tươi tốt! 💚"
+            pet_emoji, pet_color, pet_msg = "🌳","#3B82F6","Cây đang phát triển tươi tốt nha! 💚"
         elif today_usage <= 1.1*daily_limit:
-            pet_emoji, pet_color, pet_msg = "🌿","#FACC15","Cây hơi héo, hãy tiết kiệm thêm ⚠️"
+            pet_emoji, pet_color, pet_msg = "🌿","#FACC15","Cây hơi héo mất rồi, hãy tiết kiệm thêm ⚠️"
         else:
-            pet_emoji, pet_color, pet_msg = "🥀","#EF4444","Cây đang héo 😢"
+            pet_emoji, pet_color, pet_msg = "🥀","#EF4444","Cây đang héo rồi, mai bạn trồng cây khác tươi tốt hơn nhé 😢"
         st.markdown(f"<div style='font-size:60px;text-align:center'>{pet_emoji}</div>", unsafe_allow_html=True)
         st.markdown(f"<div style='padding:14px;border-radius:12px;background:{pet_color};color:white;font-weight:bold;text-align:center;font-size:18px;'>{pet_msg}</div>", unsafe_allow_html=True)
 
@@ -434,5 +434,6 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
 
