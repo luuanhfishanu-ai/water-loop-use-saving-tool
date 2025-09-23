@@ -390,7 +390,10 @@ def water_dashboard():
             custom = st.text_input("Nhập tên hoạt động:")
             if custom:
                 activity = custom
-        amount = st.number_input("Lượng nước (Lít)", min_value=0.00001, step=0.0000001, format="%.8f", value=float(DEFAULT_ACTIVITIES.get(activity, 10)))
+            if "amount" not in st.session_state:
+                st.session_state.amount = float(DEFAULT_ACTIVITIES.get(activity, 10))
+
+        amount = st.number_input("Lượng nước (Lít)", min_value=0.000000001, step=0.00001, format="%.8f", value=st.session_state.amount, key="amount")
         date_input = st.date_input("📅 Ngày sử dụng", value=datetime.now().date(), min_value=datetime(2020,1,1).date(), max_value=datetime.now().date())
         addr_input = st.text_input("🏠 Địa chỉ", value=address_default)
 
@@ -512,6 +515,7 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
 
 
