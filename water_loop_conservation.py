@@ -55,49 +55,33 @@ def safe_rerun():
 
 # ----------------- Gradient & Theme -----------------
 def set_background():
-    st.markdown(
+     st.markdown(
         """
         <style>
-        /* Nền gradient sáng hơn, pha chút xanh dương + xanh mint */
+        /* Nền toàn bộ app */
         .stApp {
-            background: linear-gradient(120deg, #ECFDF5, #E0F7FA);
-            background-attachment: fixed;
+            background: linear-gradient(
+                120deg,
+                #d8f3dc,   /* xanh lá pastel nhạt */
+                #cce5ff    /* xanh dương pastel rất nhạt */
+            );
+            color: #374151; /* xám đậm cân bằng */
         }
 
-        /* Menu trên cùng (tab) */
-        .stTabs [data-baseweb="tab"] {
-            color: #0f172a !important;           /* chữ đậm */
-            font-weight: 600 !important;
-        }
-        .stTabs [aria-selected="true"] {
-            border-bottom: 3px solid #3B82F6 !important; /* gạch chân xanh */
-            color: #3B82F6 !important;
-        }
-
-        /* Label và text input */
-        label, .css-16idsys, .css-1pndypt {
-            color: #1e293b !important;   /* đậm hơn để dễ đọc */
-            font-weight: 500;
-        }
-
-        /* Ô nhập liệu */
-        .stTextInput>div>div>input, .stPasswordInput>div>div>input {
-            color: #1e293b !important;
-        }
-
-        /* Nút chính */
-        .stButton>button {
-            background-color: #38bdf8;
-            color: #0f172a;
+        /* Tiêu đề, heading */
+        h1, h2, h3, h4, h5, h6 {
+            color: #1F2937; /* xám than – đậm hơn body text */
             font-weight: 700;
-            border-radius: 8px;
-            padding: 0.6em 1.2em;
-            border: none;
-            transition: background 0.3s;
         }
-        .stButton>button:hover {
-            background-color: #0ea5e9;
-            color: white;
+
+        /* Đoạn văn, list… */
+        p, li, span, label, .markdown-text-container {
+            color: #374151;
+        }
+
+        /* Thanh menu chính (nếu dùng st.tabs / sidebar) */
+        .css-1v3fvcr, .css-18ni7ap {
+            color: #374151;
         }
         </style>
         """,
@@ -588,6 +572,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
