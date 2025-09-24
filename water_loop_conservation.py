@@ -8,49 +8,14 @@ import uuid
 USERS_FILE = "users.csv"
 DATA_FILE = "water_usage.csv"
 
-# ----------------- Safe rerun -----------------
+# ----------------- Utils thời gian -----------------
 def now_vietnam():
     """
     Trả về thời gian hiện tại theo múi giờ Việt Nam (Asia/Ho_Chi_Minh).
     """
     return datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
 
-
-def about_tab():
-    """Giới thiệu & Hướng dẫn ngắn gọn về sản phẩm Water Loop App"""
-    st.title("💧 Về Water Loop App 💧")
-
-    st.markdown("""
-    Water Loop App là ứng dụng gamification giúp người dùng theo dõi và giảm tiêu thụ nước.  
-    Mỗi ngày bạn nhập lượng nước sử dụng, một **cây ảo** sẽ phản ánh mức tiêu thụ:
-
-    - 🌱 **Tươi:** dùng hợp lý  
-    - 🍂 **Hơi héo:** cần giảm  
-    - 🔴 **Héo đỏ:** vượt ngưỡng khuyến nghị  
-
-    Dữ liệu được tổng hợp hàng ngày, hàng tuần và hàng tháng để bạn theo dõi và duy trì thói quen tiết kiệm.
-    """)
-
-    st.subheader("Hướng dẫn nhanh")
-    st.markdown("""
-    1️ **Đăng ký** tài khoản mới.  
-    2️ **Đăng nhập** vào ứng dụng.  
-    3️ **Nhập** lượng nước đã dùng mỗi ngày (lít hoặc m³).  
-    4️ **Theo dõi cây ảo** và báo cáo để điều chỉnh thói quen.
-    """)
-
-    st.subheader("Nhóm phát triển")
-    st.markdown("""
-    Ý tưởng được thực hiện bởi nhóm sinh viên **Khoa Quốc tế học – Đại học Hà Nội (HANU)**  
-    trong khuôn khổ cuộc thi Đại sứ Gen G.
-
-    Thành viên nhóm:
-    - Đặng Lưu Anh  
-    - Nguyễn Việt Anh  
-    - Đàm Thiên Hương  
-    - Nguyễn Thị Thư
-    """)
-
+# ----------------- Safe rerun -----------------
 def safe_rerun():
     if hasattr(st, "rerun"):
         st.rerun()
@@ -94,7 +59,7 @@ def set_background():
         unsafe_allow_html=True
     )
 
-# ----------------- Utils -----------------
+# ----------------- Utils file & data -----------------
 def load_users():
     try:
         users = pd.read_csv(USERS_FILE)
@@ -133,9 +98,11 @@ def generate_group_id():
 
 # If historical data missing group_id, fill group ids per user using 30-min rule
 def ensure_group_ids(df):
-    vn_time = now_vietnam()
-    st.write("Giờ Việt Nam:", vn_time)
-    if df.empty: 
+    """
+    Nếu df rỗng trả về luôn.
+    Không in ra giờ (đã loại bỏ các st.write show giờ).
+    """
+    if df.empty:
         return df
     if 'group_id' not in df.columns or df['group_id'].isnull().all() or (df['group_id']=="" ).all():
         # fill per user
@@ -160,10 +127,44 @@ def ensure_group_ids(df):
         df = df.drop(columns=['datetime'])
     return df
 
+# ----------------- About / Intro -----------------
+def about_tab():
+    """Giới thiệu & Hướng dẫn ngắn gọn về sản phẩm Water Loop App"""
+    st.title("💧 Về Water Loop App 💧")
+
+    st.markdown("""
+    Water Loop App là ứng dụng gamification giúp người dùng theo dõi và giảm tiêu thụ nước.  
+    Mỗi ngày bạn nhập lượng nước sử dụng, một **cây ảo** sẽ phản ánh mức tiêu thụ:
+
+    - 🌱 **Tươi:** dùng hợp lý  
+    - 🍂 **Hơi héo:** cần giảm  
+    - 🔴 **Héo đỏ:** vượt ngưỡng khuyến nghị  
+
+    Dữ liệu được tổng hợp hàng ngày, hàng tuần và hàng tháng để bạn theo dõi và duy trì thói quen tiết kiệm.
+    """)
+
+    st.subheader("Hướng dẫn nhanh")
+    st.markdown("""
+    1️ **Đăng ký** tài khoản mới.  
+    2️ **Đăng nhập** vào ứng dụng.  
+    3️ **Nhập** lượng nước đã dùng mỗi ngày (lít hoặc m³).  
+    4️ **Theo dõi cây ảo** và báo cáo để điều chỉnh thói quen.
+    """)
+
+    st.subheader("Nhóm phát triển")
+    st.markdown("""
+    Ý tưởng được thực hiện bởi nhóm sinh viên **Khoa Quốc tế học – Đại học Hà Nội (HANU)**  
+    trong khuôn khổ cuộc thi Đại sứ Gen G.
+
+    Thành viên nhóm:
+    - Đặng Lưu Anh  
+    - Nguyễn Việt Anh  
+    - Đàm Thiên Hương  
+    - Nguyễn Thị Thư
+    """)
+
 # ----------------- Login & Register -----------------
 def login_register():
-    vn_time = now_vietnam()
-    st.write("Giờ Việt Nam:", vn_time)
     set_background()
     st.markdown("<h1 style='text-align:center;color:#05595b;'>💧 WATER LOOP 💧 </h1>", unsafe_allow_html=True)
     if "logged_in" not in st.session_state:
@@ -243,8 +244,6 @@ def explode_and_allocate(df, activity_col='activity', amount_col='amount'):
     Backward-compatible: if any row stores multiple activities in a single string
     (e.g. 'A, B, C'), split and allocate amount equally.
     """
-    vn_time = now_vietnam()
-    st.write("Giờ Việt Nam:", vn_time)
     if df.empty:
         return df
     df = df.copy()
@@ -260,8 +259,6 @@ def save_or_merge_entry(data, username, house_type, location, addr_input, activi
     Save 1 activity as a separate row. If the user's last activity is within 30 minutes,
     reuse that last row's group_id (so activities share the same group).
     """
-    vn_time = now_vietnam()
-    st.write("Giờ Việt Nam:", vn_time)
     now = now_vietnam()
     # ensure columns
     for c in ["username","house_type","location","address","date","time","activity","amount","note","group_id"]:
@@ -360,23 +357,27 @@ def show_grouped_log_for_user(data, username):
         # Save edits back to main data
         if st.button("💾 Lưu thay đổi chi tiết nhóm"):
             try:
-                for pos, orig_idx in enumerate(orig_indices):
-                    # edited rows align by position
-                    row = edited.iloc[pos]
-                    # update fields: date, time, activity, amount, note, address
-                    data.at[orig_idx, 'date'] = row['date']
-                    data.at[orig_idx, 'time'] = row['time']
-                    data.at[orig_idx, 'activity'] = row['activity']
-                    # coerce amount to float
-                    try:
-                        data.at[orig_idx, 'amount'] = float(row['amount'])
-                    except:
-                        data.at[orig_idx, 'amount'] = data.at[orig_idx, 'amount']
-                    data.at[orig_idx, 'note'] = row.get('note', data.at[orig_idx, 'note'])
-                    data.at[orig_idx, 'address'] = row.get('address', data.at[orig_idx, 'address'])
-                save_data(data)
-                st.success("✅ Lưu thay đổi thành công.")
-                safe_rerun()
+                # safety: ensure lengths match
+                if len(edited) != len(orig_indices):
+                    st.warning("Số dòng chỉnh sửa không khớp — vui lòng không xóa/ghi thừa trong editor, hoặc tải lại trang.")
+                else:
+                    for pos, orig_idx in enumerate(orig_indices):
+                        # edited rows align by position
+                        row = edited.iloc[pos]
+                        # update fields: date, time, activity, amount, note, address
+                        data.at[orig_idx, 'date'] = row['date']
+                        data.at[orig_idx, 'time'] = row['time']
+                        data.at[orig_idx, 'activity'] = row['activity']
+                        # coerce amount to float
+                        try:
+                            data.at[orig_idx, 'amount'] = float(row['amount'])
+                        except:
+                            data.at[orig_idx, 'amount'] = data.at[orig_idx, 'amount']
+                        data.at[orig_idx, 'note'] = row.get('note', data.at[orig_idx, 'note'])
+                        data.at[orig_idx, 'address'] = row.get('address', data.at[orig_idx, 'address'])
+                    save_data(data)
+                    st.success("✅ Lưu thay đổi thành công.")
+                    safe_rerun()
             except Exception as e:
                 st.error("Lưu thay đổi thất bại: " + str(e))
 
@@ -419,7 +420,12 @@ def water_dashboard():
     data = load_data()
     data = ensure_group_ids(data)  # backfill group ids if missing
 
-    username = st.session_state.username
+    # ensure username exists in session
+    username = st.session_state.get("username", None)
+    if username is None:
+        st.error("Bạn chưa đăng nhập. Vui lòng đăng nhập để vào dashboard.")
+        return data
+
     # get user info row if exists
     user_row = users[users['username']==username]
     if not user_row.empty:
@@ -430,7 +436,7 @@ def water_dashboard():
     daily_limit = float(st.session_state.get('daily_limit', user_row.get('daily_limit',200) if not user_row.empty else 200))
     reminder_times = st.session_state.get('reminder_times', user_row.get('reminder_times',"").split(",") if not user_row.empty else [])
 
-    # reminders near time
+    # reminders near time (use VN time)
     now = now_vietnam()
     for t in reminder_times:
         try:
@@ -451,11 +457,19 @@ def water_dashboard():
             custom = st.text_input("Nhập tên hoạt động:")
             if custom:
                 activity = custom
-        if "amount" not in st.session_state:
-                st.session_state.amount = float(DEFAULT_ACTIVITIES.get(activity, 10))
 
-        amount = st.number_input("Lượng nước (Lít)", min_value=0.000000001, step=0.00001, format="%.8f", value=st.session_state.amount, key="amount")
-        date_input = st.date_input("📅 Ngày sử dụng", value=datetime.now().date(), min_value=datetime(2020,1,1).date(), max_value=datetime.now().date())
+        # Use session_state.get so it doesn't raise AttributeError if key missing
+        default_amount = float(DEFAULT_ACTIVITIES.get(activity, 10))
+        amount = st.number_input(
+            "Lượng nước (Lít)",
+            min_value=0.000000001,
+            step=0.00001,
+            format="%.8f",
+            value=st.session_state.get("amount", default_amount),
+            key="amount"
+        )
+
+        date_input = st.date_input("📅 Ngày sử dụng", value=now_vietnam().date(), min_value=datetime(2020,1,1).date(), max_value=now_vietnam().date())
         addr_input = st.text_input("🏠 Địa chỉ", value=address_default)
 
         note_quick = st.text_area("Ghi chú nhanh cho lần nhập này (tùy chọn):", height=80)
@@ -475,7 +489,8 @@ def water_dashboard():
         df_user = data[data['username']==username].copy()
         if not df_user.empty:
             df_user['datetime'] = pd.to_datetime(df_user['date'].astype(str) + " " + df_user['time'].astype(str), errors='coerce')
-            today_sum = df_user[df_user['datetime'].dt.date == datetime.now().date()]['amount'].sum()
+            today_date = now_vietnam().date()
+            today_sum = df_user[df_user['datetime'].dt.date == today_date]['amount'].sum()
             st.metric("Tổng (L) hôm nay", f"{float(today_sum)} L")
         else:
             st.write("Chưa có dữ liệu")
@@ -549,7 +564,7 @@ def water_dashboard():
     # Pet ảo
     st.subheader("🌱 Trạng thái cây ảo")
     user_data = data[data['username']==username].copy()
-    today_data = user_data[pd.to_datetime(user_data['date']).dt.date == datetime.now().date()] if not user_data.empty else pd.DataFrame()
+    today_data = user_data[pd.to_datetime(user_data['date']).dt.date == now_vietnam().date()] if not user_data.empty else pd.DataFrame()
     today_usage = today_data['amount'].sum() if not today_data.empty else 0
     if today_usage < 0.8*daily_limit:
         pet_emoji, pet_color, pet_msg = "🌳","#3B82F6","Cây đang phát triển tươi tốt nha! 💚"
@@ -565,6 +580,8 @@ def water_dashboard():
         st.session_state.logged_in=False
         st.session_state.username=None
         safe_rerun()
+
+    return data
 
 # ----------------- Main -----------------
 st.set_page_config(page_title="Water Loop App",
@@ -586,29 +603,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
