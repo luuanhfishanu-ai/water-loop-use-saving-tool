@@ -559,7 +559,7 @@ st.set_page_config(page_title="Water Loop App",
 
 def main():
     # Đặt "Giới thiệu & Hướng dẫn" lên trước
-    tab_intro, tab_dash = st.tabs(["Giới thiệu & Hướng dẫn", "Dashboard"])
+    tab_intro, tab_dash = st.tabs(["Giới thiệu & Hướng dẫn", "Đăng nhập hoặc Đăng kí"])
 
     with tab_intro:
         about_tab()
@@ -572,6 +572,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
