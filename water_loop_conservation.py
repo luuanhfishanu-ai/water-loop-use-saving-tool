@@ -9,39 +9,42 @@ DATA_FILE = "water_usage.csv"
 
 # ----------------- Safe rerun -----------------
 
+
 def about_tab():
-    """ Giới thiệu & Hướng dẫn ngắn gọn về sản phẩm Water Loop App"""
+    """Giới thiệu & Hướng dẫn ngắn gọn về sản phẩm Water Loop App"""
     st.title("💧 Giới thiệu & Hướng dẫn 💧")
 
     st.markdown("""
-     Water Loop App là ứng dụng gamification giúp người dùng theo dõi và giảm tiêu thụ nước.  
+    Water Loop App là ứng dụng gamification giúp người dùng theo dõi và giảm tiêu thụ nước.  
     Mỗi ngày bạn nhập lượng nước sử dụng, một **cây ảo** sẽ phản ánh mức tiêu thụ:
-    - 🌱 Tươi: dùng hợp lý  
-    - 🍂 Hơi héo: cần giảm  
-    - 🔴 Héo đỏ: vượt ngưỡng khuyến nghị  
+
+    - 🌱 **Tươi:** dùng hợp lý  
+    - 🍂 **Hơi héo:** cần giảm  
+    - 🔴 **Héo đỏ:** vượt ngưỡng khuyến nghị  
 
     Dữ liệu được tổng hợp hàng ngày, hàng tuần và hàng tháng để bạn theo dõi và duy trì thói quen tiết kiệm.
     """)
 
     st.subheader("Hướng dẫn nhanh")
     st.markdown("""
-    1️**Đăng ký** tài khoản mới.  
-    2️**Đăng nhập** vào ứng dụng.  
-    3️**Nhập** lượng nước đã dùng mỗi ngày (lít hoặc m³).  
-    4️**Theo dõi cây ảo** và báo cáo để điều chỉnh thói quen.
+    1️⃣ **Đăng ký** tài khoản mới.  
+    2️⃣ **Đăng nhập** vào ứng dụng.  
+    3️⃣ **Nhập** lượng nước đã dùng mỗi ngày (lít hoặc m³).  
+    4️⃣ **Theo dõi cây ảo** và báo cáo để điều chỉnh thói quen.
     """)
 
     st.subheader("Nhóm phát triển")
     st.markdown("""
-    Ý tưởng được thực hiện bởi nhóm sinh viên Khoa Quốc tế học – Đại học Hà Nội (HANU)  
+    Ý tưởng được thực hiện bởi nhóm sinh viên **Khoa Quốc tế học – Đại học Hà Nội (HANU)**  
     trong khuôn khổ cuộc thi Đại sứ Gen G.
 
     Thành viên nhóm:
-    - Đặng Lưu Anh 
+    - Đặng Lưu Anh  
     - Nguyễn Việt Anh  
     - Đàm Thiên Hương  
     - Nguyễn Thị Thư
     """)
+
 def safe_rerun():
     if hasattr(st, "rerun"):
         st.rerun()
@@ -50,29 +53,43 @@ def safe_rerun():
     else:
         st.warning("⚠️ Phiên bản Streamlit của bạn không hỗ trợ rerun tự động.")
 
-# ----------------- Gradient Background (chỉnh ở đây) -----------------
+# ----------------- Gradient & Theme -----------------
 def set_background():
     st.markdown(
         """
         <style>
-        /* Nền tổng thể - chỉnh màu gradient ở đây */
-        .stApp { background: linear-gradient(120deg, #1e3a8a, #14213d); }
-
-        /* Nút - chỉnh màu nút + chữ ở đây */
-        .stButton>button { 
-            background-color: #2563EB; 
-            color: #1E3A8A; 
-            border-radius: 10px; 
-            padding: 0.6em 1.2em; 
-            font-weight: 600;
+        .stApp {
+            background: linear-gradient(120deg, #E0F7FA, #D0F0C0);
+            background-attachment: fixed;
+            color: #0f172a; /* chữ chính đậm vừa, đọc rõ trên nền sáng/tối */
         }
 
-        /* Một số chỉnh cho data editor / box */
+        h1, h2, h3, h4 {
+            color: #0f172a;
+        }
+
+        /* Nút chính – xanh dương tươi */
+        .stButton>button {
+            background-color: #38bdf8;  /* sky-400 */
+            color: #0f172a;
+            border-radius: 10px;
+            padding: 0.6em 1.2em;
+            font-weight: 600;
+            border: none;
+            transition: background 0.3s;
+        }
+        .stButton>button:hover {
+            background-color: #0ea5e9;  /* sky-500 hover */
+            color: white;
+        }
+
+        /* Khung bảng, data editor */
         .stDataFrame, .element-container {
-            color:  #14213D;
+            color: #0f172a;
         }
         </style>
-        """, unsafe_allow_html=True
+        """,
+        unsafe_allow_html=True
     )
 
 # ----------------- Utils -----------------
@@ -559,6 +576,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
