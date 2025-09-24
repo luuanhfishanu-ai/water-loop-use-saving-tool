@@ -56,7 +56,7 @@ def set_background():
         """
         <style>
         /* Nền tổng thể - chỉnh màu gradient ở đây */
-        .stApp { background: linear-gradient(120deg, #eff6ff, #dbeafe); }
+        .stApp { background: linear-gradient(120deg, #1e3a8a, #14213d); }
 
         /* Nút - chỉnh màu nút + chữ ở đây */
         .stButton>button { 
@@ -559,6 +559,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
