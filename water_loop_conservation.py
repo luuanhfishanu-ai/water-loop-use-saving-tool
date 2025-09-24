@@ -61,7 +61,7 @@ def set_background():
         /* Nút - chỉnh màu nút + chữ ở đây */
         .stButton>button { 
             background-color: #2563EB; 
-            color: white; 
+            color: yellow; 
             border-radius: 10px; 
             padding: 0.6em 1.2em; 
             font-weight: 600;
@@ -559,6 +559,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
