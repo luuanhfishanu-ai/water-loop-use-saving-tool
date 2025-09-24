@@ -11,7 +11,7 @@ DATA_FILE = "water_usage.csv"
 
 def about_tab():
     """ Giới thiệu & Hướng dẫn ngắn gọn về sản phẩm Water Loop App"""
-    st.title("💧 Giới thiệu & Hướng dẫn")
+    st.title("💧 Giới thiệu & Hướng dẫn 💧")
 
     st.markdown("""
      Water Loop App là ứng dụng gamification giúp người dùng theo dõi và giảm tiêu thụ nước.  
@@ -25,10 +25,10 @@ def about_tab():
 
     st.subheader("Hướng dẫn nhanh")
     st.markdown("""
-    1️⃣ **Đăng ký** tài khoản mới.  
-    2️⃣ **Đăng nhập** vào ứng dụng.  
-    3️⃣ **Nhập** lượng nước đã dùng mỗi ngày (lít hoặc m³).  
-    4️⃣ **Theo dõi cây ảo** và báo cáo để điều chỉnh thói quen.
+    1️**Đăng ký** tài khoản mới.  
+    2️**Đăng nhập** vào ứng dụng.  
+    3️**Nhập** lượng nước đã dùng mỗi ngày (lít hoặc m³).  
+    4️**Theo dõi cây ảo** và báo cáo để điều chỉnh thói quen.
     """)
 
     st.subheader("Nhóm phát triển")
@@ -69,7 +69,7 @@ def set_background():
 
         /* Một số chỉnh cho data editor / box */
         .stDataFrame, .element-container {
-            color: #0f172a;
+            color: #0A2472;
         }
         </style>
         """, unsafe_allow_html=True
@@ -559,6 +559,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
