@@ -8,6 +8,40 @@ USERS_FILE = "users.csv"
 DATA_FILE = "water_usage.csv"
 
 # ----------------- Safe rerun -----------------
+
+def about_tab():
+    """ Giới thiệu & Hướng dẫn ngắn gọn về sản phẩm Water Loop App"""
+    st.title("💧 Giới thiệu & Hướng dẫn")
+
+    st.markdown("""
+     Water Loop App là ứng dụng gamification giúp người dùng theo dõi và giảm tiêu thụ nước.  
+    Mỗi ngày bạn nhập lượng nước sử dụng, một **cây ảo** sẽ phản ánh mức tiêu thụ:
+    - 🌱 Tươi: dùng hợp lý  
+    - 🍂 Hơi héo: cần giảm  
+    - 🔴 Héo đỏ: vượt ngưỡng khuyến nghị  
+
+    Dữ liệu được tổng hợp hàng ngày, hàng tuần và hàng tháng để bạn theo dõi và duy trì thói quen tiết kiệm.
+    """)
+
+    st.subheader("Hướng dẫn nhanh")
+    st.markdown("""
+    1️⃣ **Đăng ký** tài khoản mới.  
+    2️⃣ **Đăng nhập** vào ứng dụng.  
+    3️⃣ **Nhập** lượng nước đã dùng mỗi ngày (lít hoặc m³).  
+    4️⃣ **Theo dõi cây ảo** và báo cáo để điều chỉnh thói quen.
+    """)
+
+    st.subheader("Nhóm phát triển")
+    st.markdown("""
+    Ý tưởng được thực hiện bởi nhóm sinh viên Khoa Quốc tế học – Đại học Hà Nội (HANU)  
+    trong khuôn khổ cuộc thi Đại sứ Gen G.
+
+    Thành viên nhóm:
+    - Đặng Lưu Anh 
+    - Nguyễn Việt Anh  
+    - Đàm Thiên Hương  
+    - Nguyễn Thị Thư
+    """)
 def safe_rerun():
     if hasattr(st, "rerun"):
         st.rerun()
@@ -515,6 +549,7 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
 
 
