@@ -2,12 +2,18 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 import uuid
 
 USERS_FILE = "users.csv"
 DATA_FILE = "water_usage.csv"
 
 # ----------------- Safe rerun -----------------
+def now_vietnam():
+    """
+    Trả về thời gian hiện tại theo múi giờ Việt Nam (Asia/Ho_Chi_Minh).
+    """
+    return datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
 
 
 def about_tab():
@@ -90,6 +96,8 @@ def set_background():
 
 # ----------------- Utils -----------------
 def load_users():
+    vn_time = now_vietnam()
+    st.write("Giờ Việt Nam:", vn_time)
     try:
         users = pd.read_csv(USERS_FILE)
         if "address" not in users.columns:
@@ -106,6 +114,8 @@ def load_users():
         ])
 
 def load_data():
+    vn_time = now_vietnam()
+    st.write("Giờ Việt Nam:", vn_time)
     try:
         df = pd.read_csv(DATA_FILE)
         # make sure required cols exist
@@ -127,6 +137,8 @@ def generate_group_id():
 
 # If historical data missing group_id, fill group ids per user using 30-min rule
 def ensure_group_ids(df):
+    vn_time = now_vietnam()
+    st.write("Giờ Việt Nam:", vn_time)
     if df.empty: 
         return df
     if 'group_id' not in df.columns or df['group_id'].isnull().all() or (df['group_id']=="" ).all():
@@ -154,6 +166,8 @@ def ensure_group_ids(df):
 
 # ----------------- Login & Register -----------------
 def login_register():
+    vn_time = now_vietnam()
+    st.write("Giờ Việt Nam:", vn_time)
     set_background()
     st.markdown("<h1 style='text-align:center;color:#05595b;'>💧 WATER LOOP 💧 </h1>", unsafe_allow_html=True)
     if "logged_in" not in st.session_state:
@@ -233,6 +247,8 @@ def explode_and_allocate(df, activity_col='activity', amount_col='amount'):
     Backward-compatible: if any row stores multiple activities in a single string
     (e.g. 'A, B, C'), split and allocate amount equally.
     """
+    vn_time = now_vietnam()
+    st.write("Giờ Việt Nam:", vn_time)
     if df.empty:
         return df
     df = df.copy()
@@ -248,7 +264,9 @@ def save_or_merge_entry(data, username, house_type, location, addr_input, activi
     Save 1 activity as a separate row. If the user's last activity is within 30 minutes,
     reuse that last row's group_id (so activities share the same group).
     """
-    now = datetime.now()
+    vn_time = now_vietnam()
+    st.write("Giờ Việt Nam:", vn_time)
+    now = now_vietnam()
     # ensure columns
     for c in ["username","house_type","location","address","date","time","activity","amount","note","group_id"]:
         if c not in data.columns:
@@ -417,7 +435,7 @@ def water_dashboard():
     reminder_times = st.session_state.get('reminder_times', user_row.get('reminder_times',"").split(",") if not user_row.empty else [])
 
     # reminders near time
-    now = datetime.now()
+    now = now_vietnam()
     for t in reminder_times:
         try:
             h,m = map(int, (t or "00:00").split(":"))
@@ -572,6 +590,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
