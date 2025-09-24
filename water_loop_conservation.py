@@ -27,10 +27,10 @@ def about_tab():
 
     st.subheader("Hướng dẫn nhanh")
     st.markdown("""
-    1️⃣ **Đăng ký** tài khoản mới.  
-    2️⃣ **Đăng nhập** vào ứng dụng.  
-    3️⃣ **Nhập** lượng nước đã dùng mỗi ngày (lít hoặc m³).  
-    4️⃣ **Theo dõi cây ảo** và báo cáo để điều chỉnh thói quen.
+    1️ **Đăng ký** tài khoản mới.  
+    2️ **Đăng nhập** vào ứng dụng.  
+    3️ **Nhập** lượng nước đã dùng mỗi ngày (lít hoặc m³).  
+    4️ **Theo dõi cây ảo** và báo cáo để điều chỉnh thói quen.
     """)
 
     st.subheader("Nhóm phát triển")
@@ -61,7 +61,7 @@ def set_background():
         .stApp {
             background: linear-gradient(120deg, #E0F7FA, #D0F0C0);
             background-attachment: fixed;
-            color: #0f172a; /* chữ chính đậm vừa, đọc rõ trên nền sáng/tối */
+            color: #4ADE80; /* chữ chính đậm vừa, đọc rõ trên nền sáng/tối */
         }
 
         h1, h2, h3, h4 {
@@ -576,6 +576,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
