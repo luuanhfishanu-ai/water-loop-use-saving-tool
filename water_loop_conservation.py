@@ -12,7 +12,7 @@ DATA_FILE = "water_usage.csv"
 
 def about_tab():
     """Giới thiệu & Hướng dẫn ngắn gọn về sản phẩm Water Loop App"""
-    st.title("💧 Giới thiệu & Hướng dẫn 💧")
+    st.title("💧 Về Water Loop App 💧")
 
     st.markdown("""
     Water Loop App là ứng dụng gamification giúp người dùng theo dõi và giảm tiêu thụ nước.  
@@ -572,6 +572,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
