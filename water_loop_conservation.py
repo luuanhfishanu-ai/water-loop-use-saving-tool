@@ -540,18 +540,18 @@ def water_dashboard():
         safe_rerun()
 
 # ----------------- Main -----------------
-def main():
-  st.set_page_config(page_title="Water Loop App",
+st.set_page_config(page_title="Water Loop App",
                    page_icon="💧",
                    layout="centered")
 
 def main():
-    tab1, tab2 = st.tabs(["Dashboard", "Giới thiệu & Hướng dẫn"])
+    # Đặt "Giới thiệu & Hướng dẫn" lên trước
+    tab_intro, tab_dash = st.tabs(["Giới thiệu & Hướng dẫn", "Dashboard"])
 
-    with tab2:
+    with tab_intro:
         about_tab()
 
-    with tab1:
+    with tab_dash:
         if "logged_in" not in st.session_state or not st.session_state.logged_in:
             login_register()
         else:
@@ -559,8 +559,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
 
 
 
