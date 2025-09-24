@@ -69,7 +69,7 @@ def set_background():
 
         /* Một số chỉnh cho data editor / box */
         .stDataFrame, .element-container {
-            color: #0A2472;
+            color:  #14213D;
         }
         </style>
         """, unsafe_allow_html=True
@@ -559,6 +559,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
