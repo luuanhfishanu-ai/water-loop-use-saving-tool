@@ -96,8 +96,6 @@ def set_background():
 
 # ----------------- Utils -----------------
 def load_users():
-    vn_time = now_vietnam()
-    st.write("Giờ Việt Nam:", vn_time)
     try:
         users = pd.read_csv(USERS_FILE)
         if "address" not in users.columns:
@@ -114,8 +112,6 @@ def load_users():
         ])
 
 def load_data():
-    vn_time = now_vietnam()
-    st.write("Giờ Việt Nam:", vn_time)
     try:
         df = pd.read_csv(DATA_FILE)
         # make sure required cols exist
@@ -590,6 +586,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
