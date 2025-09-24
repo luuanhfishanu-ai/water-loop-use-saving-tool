@@ -15,6 +15,21 @@ def now_vietnam():
     """
     return datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
 
+def localize_series_to_vn(series):
+    """
+    Chuyển pandas Series (datetime-like) từ tz-naive -> tz-aware Asia/Ho_Chi_Minh.
+    Nếu series đã tz-aware thì giữ nguyên.
+    """
+    s = pd.to_datetime(series, errors='coerce')
+    # Series.dt.tz is None khi tz-naive
+    try:
+        if s.dt.tz is None:
+            s = s.dt.tz_localize("Asia/Ho_Chi_Minh", ambiguous="NaT", nonexistent="shift_forward")
+    except Exception:
+        # fallback: return parsed but naive (shouldn't happen normally)
+        s = pd.to_datetime(series, errors='coerce')
+    return s
+
 # ----------------- Safe rerun -----------------
 def safe_rerun():
     if hasattr(st, "rerun"):
@@ -33,24 +48,18 @@ def set_background():
         .stApp {
             background: linear-gradient(
                 120deg,
-                #d8f3dc,   /* xanh lá pastel nhạt */
-                #cce5ff    /* xanh dương pastel rất nhạt */
+                #d8f3dc,
+                #cce5ff
             );
-            color: #374151; /* xám đậm cân bằng */
+            color: #374151;
         }
-
-        /* Tiêu đề, heading */
         h1, h2, h3, h4, h5, h6 {
-            color: #1F2937; /* xám than – đậm hơn body text */
+            color: #1F2937;
             font-weight: 700;
         }
-
-        /* Đoạn văn, list… */
         p, li, span, label, .markdown-text-container {
             color: #374151;
         }
-
-        /* Thanh menu chính (nếu dùng st.tabs / sidebar) */
         .css-1v3fvcr, .css-18ni7ap {
             color: #374151;
         }
@@ -83,7 +92,6 @@ def load_data():
         for c in ["username","house_type","location","address","date","time","activity","amount","note","group_id"]:
             if c not in df.columns:
                 df[c] = "" if c in ["username","house_type","location","address","activity","note","group_id"] else 0
-        # normalize types
         df = df.reset_index(drop=True)
         return df
     except FileNotFoundError:
@@ -100,7 +108,7 @@ def generate_group_id():
 def ensure_group_ids(df):
     """
     Nếu df rỗng trả về luôn.
-    Không in ra giờ (đã loại bỏ các st.write show giờ).
+    Localize datetime để giữ nhất quán timezone khi cần.
     """
     if df.empty:
         return df
@@ -108,6 +116,13 @@ def ensure_group_ids(df):
         # fill per user
         df = df.sort_values(['username','date','time']).reset_index(drop=True)
         df['datetime'] = pd.to_datetime(df['date'].astype(str) + " " + df['time'].astype(str), errors='coerce')
+        # localize if needed
+        try:
+            if df['datetime'].dt.tz is None:
+                df['datetime'] = df['datetime'].dt.tz_localize("Asia/Ho_Chi_Minh", ambiguous="NaT", nonexistent="shift_forward")
+        except Exception:
+            # fallback: apply helper
+            df['datetime'] = localize_series_to_vn(df['datetime'])
         df['group_id'] = ""
         for user in df['username'].unique():
             mask = df['username']==user
@@ -258,6 +273,7 @@ def save_or_merge_entry(data, username, house_type, location, addr_input, activi
     """
     Save 1 activity as a separate row. If the user's last activity is within 30 minutes,
     reuse that last row's group_id (so activities share the same group).
+    This function localizes user_entries datetimes to VN tz to avoid tz-aware/tz-naive subtraction errors.
     """
     now = now_vietnam()
     # ensure columns
@@ -271,11 +287,21 @@ def save_or_merge_entry(data, username, house_type, location, addr_input, activi
     # find last entry for this user
     user_entries = data[data['username']==username].copy()
     if not user_entries.empty:
+        # parse datetime and localize to VN tz
         user_entries['datetime'] = pd.to_datetime(user_entries['date'].astype(str) + ' ' + user_entries['time'].astype(str), errors='coerce')
+        # localize series if tz-naive
+        try:
+            if user_entries['datetime'].dt.tz is None:
+                user_entries['datetime'] = user_entries['datetime'].dt.tz_localize("Asia/Ho_Chi_Minh", ambiguous="NaT", nonexistent="shift_forward")
+        except Exception:
+            user_entries['datetime'] = localize_series_to_vn(user_entries['datetime'])
+
         user_entries = user_entries.sort_values('datetime', ascending=False)
         last_idx = user_entries.index[0]
         last_dt = user_entries.loc[last_idx, 'datetime']
         last_group = user_entries.loc[last_idx, 'group_id'] if pd.notna(user_entries.loc[last_idx, 'group_id']) and user_entries.loc[last_idx, 'group_id']!="" else None
+
+        # now is tz-aware from now_vietnam(); last_dt is tz-aware after localization
         if pd.notna(last_dt) and (now - last_dt) <= timedelta(minutes=30):
             group_id = last_group if last_group else generate_group_id()
         else:
@@ -311,8 +337,14 @@ def show_grouped_log_for_user(data, username):
         st.info("Chưa có dữ liệu. Hãy nhập hoạt động để tạo nhật ký.")
         return data  # nothing to do
 
-    # compute datetime column for sorting
+    # compute datetime column for sorting and localize
     user_data['datetime'] = pd.to_datetime(user_data['date'].astype(str) + " " + user_data['time'].astype(str), errors='coerce')
+    try:
+        if user_data['datetime'].dt.tz is None:
+            user_data['datetime'] = user_data['datetime'].dt.tz_localize("Asia/Ho_Chi_Minh", ambiguous="NaT", nonexistent="shift_forward")
+    except Exception:
+        user_data['datetime'] = localize_series_to_vn(user_data['datetime'])
+
     # group summary
     grouped = user_data.groupby('group_id').agg({
         'date': 'min',
@@ -340,7 +372,6 @@ def show_grouped_log_for_user(data, username):
         st.write(f"### Chi tiết nhóm: {sel}")
         details = user_data[user_data['group_id']==sel].sort_values('datetime', ascending=False).reset_index()
         # keep original indices mapping to 'data'
-        # details['index'] is original index in 'data' prior to reset; we kept that in reset_index()
         if 'index' not in details.columns:
             st.error("Không tìm thấy mapping index (lỗi nội bộ).")
             return data
@@ -382,14 +413,12 @@ def show_grouped_log_for_user(data, username):
                 st.error("Lưu thay đổi thất bại: " + str(e))
 
         # Delete specific activities in this group
-        # present choices with friendly labels
         choices = [f"{i+1}. {details.loc[i,'activity']} ({details.loc[i,'amount']} L) - {details.loc[i,'date']} {details.loc[i,'time']}" for i in range(len(details))]
         to_delete = st.multiselect("🗑️ Chọn các hoạt động để xóa (chỉ tác động tới hoạt động được chọn):", options=list(range(len(details))), format_func=lambda i: choices[i])
         if st.button("❌ Xóa hoạt động đã chọn"):
             if not to_delete:
                 st.warning("Bạn chưa chọn hoạt động nào để xóa.")
             else:
-                # map positions to orig indices
                 indices_to_drop = [orig_indices[pos] for pos in to_delete]
                 data = data.drop(indices_to_drop).reset_index(drop=True)
                 save_data(data)
@@ -489,6 +518,11 @@ def water_dashboard():
         df_user = data[data['username']==username].copy()
         if not df_user.empty:
             df_user['datetime'] = pd.to_datetime(df_user['date'].astype(str) + " " + df_user['time'].astype(str), errors='coerce')
+            try:
+                if df_user['datetime'].dt.tz is None:
+                    df_user['datetime'] = df_user['datetime'].dt.tz_localize("Asia/Ho_Chi_Minh", ambiguous="NaT", nonexistent="shift_forward")
+            except Exception:
+                df_user['datetime'] = localize_series_to_vn(df_user['datetime'])
             today_date = now_vietnam().date()
             today_sum = df_user[df_user['datetime'].dt.date == today_date]['amount'].sum()
             st.metric("Tổng (L) hôm nay", f"{float(today_sum)} L")
@@ -502,6 +536,12 @@ def water_dashboard():
     user_data_all = data[data['username']==username].copy()
     if not user_data_all.empty:
         user_data_all['datetime'] = pd.to_datetime(user_data_all['date'].astype(str) + " " + user_data_all['time'].astype(str), errors='coerce')
+        try:
+            if user_data_all['datetime'].dt.tz is None:
+                user_data_all['datetime'] = user_data_all['datetime'].dt.tz_localize("Asia/Ho_Chi_Minh", ambiguous="NaT", nonexistent="shift_forward")
+        except Exception:
+            user_data_all['datetime'] = localize_series_to_vn(user_data_all['datetime'])
+
         all_addresses = user_data_all['address'].fillna('').unique().tolist()
         selected_addresses = st.multiselect("Chọn địa chỉ để phân tích", options=all_addresses, default=all_addresses)
         filtered_data = user_data_all[user_data_all['address'].isin(selected_addresses)].copy()
