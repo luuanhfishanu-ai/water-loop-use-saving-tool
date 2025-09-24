@@ -58,34 +58,46 @@ def set_background():
     st.markdown(
         """
         <style>
+        /* Nền gradient sáng hơn, pha chút xanh dương + xanh mint */
         .stApp {
-            background: linear-gradient(120deg, #E0F7FA, #D0F0C0);
+            background: linear-gradient(120deg, #ECFDF5, #E0F7FA);
             background-attachment: fixed;
-            color: #4ADE80; /* chữ chính đậm vừa, đọc rõ trên nền sáng/tối */
         }
 
-        h1, h2, h3, h4 {
-            color: #0f172a;
+        /* Menu trên cùng (tab) */
+        .stTabs [data-baseweb="tab"] {
+            color: #0f172a !important;           /* chữ đậm */
+            font-weight: 600 !important;
+        }
+        .stTabs [aria-selected="true"] {
+            border-bottom: 3px solid #3B82F6 !important; /* gạch chân xanh */
+            color: #3B82F6 !important;
         }
 
-        /* Nút chính – xanh dương tươi */
+        /* Label và text input */
+        label, .css-16idsys, .css-1pndypt {
+            color: #1e293b !important;   /* đậm hơn để dễ đọc */
+            font-weight: 500;
+        }
+
+        /* Ô nhập liệu */
+        .stTextInput>div>div>input, .stPasswordInput>div>div>input {
+            color: #1e293b !important;
+        }
+
+        /* Nút chính */
         .stButton>button {
-            background-color: #38bdf8;  /* sky-400 */
+            background-color: #38bdf8;
             color: #0f172a;
-            border-radius: 10px;
+            font-weight: 700;
+            border-radius: 8px;
             padding: 0.6em 1.2em;
-            font-weight: 600;
             border: none;
             transition: background 0.3s;
         }
         .stButton>button:hover {
-            background-color: #0ea5e9;  /* sky-500 hover */
+            background-color: #0ea5e9;
             color: white;
-        }
-
-        /* Khung bảng, data editor */
-        .stDataFrame, .element-container {
-            color: #0f172a;
         }
         </style>
         """,
@@ -576,6 +588,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
