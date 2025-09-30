@@ -177,6 +177,8 @@ def about_tab():
     2️ **Đăng nhập** vào ứng dụng.  
     3️ **Nhập** lượng nước đã dùng mỗi ngày (lít hoặc m³).  
     4️ **Theo dõi cây ảo** và báo cáo để điều chỉnh thói quen.
+    5️⃣ ➕ **Thêm hoạt động**: Vào mục *Nhật ký* → chọn *Thêm hoạt động*, nhập thông tin (ngày, giờ, loại hoạt động, lượng nước, ghi chú) → nhấn **Lưu**.  
+    6️⃣ ❌ **Xóa hoạt động**: Vào *Chi tiết nhóm* → chọn hoạt động cần xóa → nhấn **Xóa hoạt động đã chọn**, hoặc chọn **Xóa toàn bộ nhóm này** để xóa tất cả.  
     """)
 
     st.subheader("Nhóm phát triển")
@@ -657,6 +659,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
