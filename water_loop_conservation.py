@@ -102,9 +102,8 @@ def save_data(df):
     df.to_csv(DATA_FILE, index=False)
 
 def generate_group_id():
-    user_name = st.session_state.get("username", "usr")
-    ts = now_Vietnam().strftime("%H%M%S")
-    return f"{username[:3]}{ts}"
+    user_name = st.session_state.get("username")
+    return f"{username[:3]}"
 
 # If historical data missing group_id, fill group ids per user using 30-min rule
 def ensure_group_ids(df):
@@ -645,5 +644,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
