@@ -104,7 +104,7 @@ def save_data(df):
 # ----------------- Group ID generator (fixed) -----------------
 def generate_group_id(username: str = "usr") -> str:
     """
-    Sinh group_id dựa trên 3 ký tự đầu của username + timestamp + 6 ký tự UUID.
+    Sinh group_id dựa trên 3 ký tự đầu của username + timestamp.
     Nếu username rỗng/None sẽ dùng 'usr' làm mặc định để tránh lỗi.
     """
     uname = (str(username) if username is not None else "usr").strip()
@@ -112,7 +112,7 @@ def generate_group_id(username: str = "usr") -> str:
         uname = "usr"
     uname_short = uname[:3]
     ts = datetime.now().strftime("%Y%m%d%H%M%S")
-    return f"{uname_short}-{ts}-{uuid.uuid4().hex[:6]}"
+    return f"{uname_short}-{ts}"
 
 # If historical data missing group_id, fill group ids per user using 30-min rule
 def ensure_group_ids(df):
@@ -654,3 +654,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
