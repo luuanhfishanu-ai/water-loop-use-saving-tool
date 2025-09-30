@@ -180,7 +180,7 @@ def about_tab():
     3️ **Nhập lượng nước đã dùng**:  
         &nbsp;&nbsp;&nbsp;➡️ Vào mục *Ghi nhận hoạt động*.  
         &nbsp;&nbsp;&nbsp;➡️ Chọn loại hoạt động (🚿 Tắm, 🧺 Giặt, 🍳 Nấu ăn...).  
-        &nbsp;&nbsp;&nbsp;➡️ Nhập lượng nước (lít hoặc m³).  
+        &nbsp;&nbsp;&nbsp;➡️ Nhập lượng nước **theo lít**. Nếu nhỏ hơn 1 lít, nhập dưới dạng **0.xx** (ví dụ: 0.25).         
         &nbsp;&nbsp;&nbsp;➡️ Nhấn **Lưu hoạt động** để cập nhật. 
     
     4️ **Theo dõi cây ảo** và báo cáo để điều chỉnh thói quen.
@@ -668,6 +668,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
