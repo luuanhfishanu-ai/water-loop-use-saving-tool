@@ -102,7 +102,9 @@ def save_data(df):
     df.to_csv(DATA_FILE, index=False)
 
 def generate_group_id():
-    return str(uuid.uuid4())
+    user_name = st.session_state.get("username","usr")
+    ts = datetime.now().strftime("%H%M%S")
+    return f"{username[:3]}{ts}"
 
 # If historical data missing group_id, fill group ids per user using 30-min rule
 def ensure_group_ids(df):
@@ -491,9 +493,9 @@ def water_dashboard():
         default_amount = float(DEFAULT_ACTIVITIES.get(activity, 10))
         amount = st.number_input(
             "Lượng nước (Lít)",
-            min_value=0.000000001,
-            step=0.00001,
-            format="%.8f",
+            min_value=0.01,
+            step=0.1,
+            format="%.2f",
             value=st.session_state.get("amount", default_amount),
             key="amount"
         )
@@ -643,3 +645,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
