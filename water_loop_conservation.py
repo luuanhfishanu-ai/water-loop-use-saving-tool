@@ -111,7 +111,7 @@ def generate_group_id(username: str = "usr") -> str:
     if uname == "":
         uname = "usr"
     uname_short = uname[:3]
-    ts = datetime.now().strftime("%H%M%S")
+    ts = datetime.now().strftime("%H%M%d%m")
     return f"{uname_short}-{ts}"
 
 # If historical data missing group_id, fill group ids per user using 30-min rule
@@ -654,5 +654,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
