@@ -100,6 +100,9 @@ def load_data():
 
 def save_data(df):
     df.to_csv(DATA_FILE, index=False)
+def generate_group_id(username: str) -> str:
+    ts = datetime.now().strftime("%Y%m%d%H%M%S")
+    return f"{username[:3]}-{ts}-{uuid.uuid4().hex[:6]}"
 
 # If historical data missing group_id, fill group ids per user using 30-min rule
 def ensure_group_ids(df):
@@ -640,6 +643,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
