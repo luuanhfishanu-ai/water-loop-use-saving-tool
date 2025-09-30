@@ -100,9 +100,19 @@ def load_data():
 
 def save_data(df):
     df.to_csv(DATA_FILE, index=False)
-def generate_group_id(username: str) -> str:
+
+# ----------------- Group ID generator (fixed) -----------------
+def generate_group_id(username: str = "usr") -> str:
+    """
+    Sinh group_id dựa trên 3 ký tự đầu của username + timestamp + 6 ký tự UUID.
+    Nếu username rỗng/None sẽ dùng 'usr' làm mặc định để tránh lỗi.
+    """
+    uname = (str(username) if username is not None else "usr").strip()
+    if uname == "":
+        uname = "usr"
+    uname_short = uname[:3]
     ts = datetime.now().strftime("%Y%m%d%H%M%S")
-    return f"{username[:3]}-{ts}-{uuid.uuid4().hex[:6]}"
+    return f"{uname_short}-{ts}-{uuid.uuid4().hex[:6]}"
 
 # If historical data missing group_id, fill group ids per user using 30-min rule
 def ensure_group_ids(df):
@@ -132,11 +142,11 @@ def ensure_group_ids(df):
             for idx in user_idx:
                 dt = df.at[idx, 'datetime']
                 if pd.isna(dt):
-                    # if datetime missing, create new group
-                    current_group = generate_group_id()
+                    # if datetime missing, create new group (tied to user)
+                    current_group = generate_group_id(user)
                 else:
                     if last_dt is None or (dt - last_dt) > timedelta(minutes=30):
-                        current_group = generate_group_id()
+                        current_group = generate_group_id(user)
                 df.at[idx, 'group_id'] = current_group
                 last_dt = dt
         df = df.drop(columns=['datetime'])
@@ -174,7 +184,8 @@ def about_tab():
     Thành viên nhóm:
     - Đặng Lưu Anh  
     - Nguyễn Việt Anh  
-    - Đàm Thiên Hương  
+    - Đàm Thiên Hương
+    - Lê Thị Thu Phương
     - Nguyễn Thị Thư
     """)
 
@@ -303,11 +314,11 @@ def save_or_merge_entry(data, username, house_type, location, addr_input, activi
 
         # now is tz-aware from now_vietnam(); last_dt is tz-aware after localization
         if pd.notna(last_dt) and (now - last_dt) <= timedelta(minutes=30):
-            group_id = last_group if last_group else generate_group_id()
+            group_id = last_group if last_group else generate_group_id(username)
         else:
-            group_id = generate_group_id()
+            group_id = generate_group_id(username)
     else:
-        group_id = generate_group_id()
+        group_id = generate_group_id(username)
 
     # create new row for this activity
     new_entry = {
@@ -643,11 +654,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
